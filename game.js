@@ -3,6 +3,8 @@
 
   const SIZE = 8;
   const POWER_MAX = 100;
+  // The multiplier affects points only. The BLOQO POWER energy formula stays independent.
+  const MULTIPLIER_MILESTONES = [0, 2, 5, 9, 14];
   const COLORS = ['#5f9eff', '#ffbd57', '#ff647e', '#55d3a0', '#ae86fc', '#5ccee9'];
   const SHAPES = [
     [[0,0],[0,1]],
@@ -55,8 +57,15 @@
   const powerHintEl = $('powerHint');
   const removePowerBtn = $('removePowerBtn');
   const movePowerBtn = $('movePowerBtn');
+  const multiplierPanelEl = $('multiplierPanel');
+  const multiplierValueEl = $('multiplierValue');
+  const multiplierHintEl = $('multiplierHint');
+  const multiplierFillEl = $('multiplierFill');
+  const multiplierMeterEl = multiplierPanelEl.querySelector('.multiplier-meter');
 
   let board, hand, score, combo, best, startBest;
+  let linesCleared = 0;
+  let multiplier = 1;
   let energy = 0;
   let powerMode = null;
   let lastPlaced = null;
@@ -168,6 +177,41 @@
     bestEl.textContent = best.toLocaleString('pt-BR');
     comboEl.hidden = combo < 2;
     comboEl.textContent = `COMBO ×${combo}`;
+  }
+
+  function updateMultiplier() {
+    const maxed = multiplier === MULTIPLIER_MILESTONES.length;
+    const currentGoal = MULTIPLIER_MILESTONES[multiplier - 1];
+    const nextGoal = maxed ? currentGoal : MULTIPLIER_MILESTONES[multiplier];
+    const progress = maxed ? 1 : (linesCleared - currentGoal) / (nextGoal - currentGoal);
+    multiplierValueEl.textContent = `×${multiplier}`;
+    multiplierHintEl.textContent = maxed
+      ? 'MÁXIMO! Pontos ×5'
+      : `${linesCleared - currentGoal}/${nextGoal - currentGoal} linhas para ×${multiplier + 1}`;
+    multiplierFillEl.style.width = `${Math.min(100, Math.max(0, progress * 100))}%`;
+    multiplierMeterEl.setAttribute('aria-valuenow', String(Math.min(linesCleared, nextGoal)));
+    multiplierMeterEl.setAttribute('aria-valuemax', String(nextGoal));
+    multiplierPanelEl.classList.toggle('is-maxed', maxed);
+  }
+
+  function advanceMultiplier(clearedLines) {
+    linesCleared += clearedLines;
+    const previous = multiplier;
+    for (let i = MULTIPLIER_MILESTONES.length - 1; i >= 0; i--) {
+      if (linesCleared >= MULTIPLIER_MILESTONES[i]) {
+        multiplier = i + 1;
+        break;
+      }
+    }
+    updateMultiplier();
+    if (multiplier !== previous) {
+      multiplierPanelEl.classList.remove('level-up');
+      void multiplierPanelEl.offsetWidth;
+      multiplierPanelEl.classList.add('level-up');
+      playSound('ready');
+      return true;
+    }
+    return false;
   }
 
   function canMoveLast() {
@@ -353,7 +397,7 @@
     const cells = getCells(piece, r, c);
     cells.forEach(([rr,cc]) => { board[rr][cc] = piece.color; });
     lastPlaced = { piece: { cells: piece.cells.map(cell => [...cell]), color: piece.color }, r, c, cells };
-    score += cells.length * 10;
+    score += cells.length * 10 * multiplier;
     addEnergy(10);
     hand[index] = null;
     selectedSlot = -1;
@@ -377,7 +421,9 @@
       const epoch = gameEpoch;
       combo++;
       const total = rows.length + cols.length;
-      score += total * 120 + (combo > 1 ? (combo - 1) * 80 : 0);
+      const upgraded = advanceMultiplier(total);
+      const linePoints = (total * 120 + (combo > 1 ? (combo - 1) * 80 : 0)) * multiplier;
+      score += linePoints;
       addEnergy(total * 25 + (combo > 1 ? 40 : 0));
       updateScore();
       const marked = new Set();
@@ -390,8 +436,8 @@
       boardEl.classList.remove('line-celebration');
       void boardEl.offsetWidth;
       boardEl.classList.add('line-celebration');
-      showToast(combo > 1 ? `COMBO ×${combo}! +${total * 120 + (combo - 1) * 80}` : total > 1 ? `INCRÍVEL! ${total} LINHAS` : 'LINHA COMPLETA!');
-      playSound(combo > 1 ? 'combo' : 'clear');
+      showToast(upgraded ? `MULTIPLICADOR ×${multiplier}! ✦` : combo > 1 ? `COMBO ×${combo}! +${linePoints}` : total > 1 ? `INCRÍVEL! ${total} LINHAS` : 'LINHA COMPLETA!');
+      if (!upgraded) playSound(combo > 1 ? 'combo' : 'clear');
       setTimeout(() => {
         if (epoch !== gameEpoch) return;
         marked.forEach(key => {
@@ -497,6 +543,8 @@
     board = Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
     score = 0;
     combo = 0;
+    linesCleared = 0;
+    multiplier = 1;
     energy = 0;
     powerMode = null;
     lastPlaced = null;
@@ -514,6 +562,7 @@
     renderBoard();
     renderHand();
     updateScore();
+    updateMultiplier();
     updatePower();
   }
 

@@ -55,6 +55,14 @@
           </div>
         </div>
 
+        <div id="multiplierPanel" class="multiplier-strip" aria-label="Multiplicador de pontos">
+          <div class="multiplier-topline">
+            <span class="multiplier-name">✦ MULTIPLICADOR <strong id="multiplierValue">×1</strong></span>
+            <span id="multiplierHint">0/2 linhas para ×2</span>
+          </div>
+          <div class="multiplier-meter" role="progressbar" aria-label="Progresso do próximo multiplicador" aria-valuemin="0" aria-valuemax="2" aria-valuenow="0"><div id="multiplierFill" class="multiplier-fill"></div></div>
+        </div>
+
         <div class="game-board-area">
           <div id="powerPanel" class="power-panel" aria-label="Energia BLOQO POWER">
             <div class="power-topline"><strong>⚡ BLOQO POWER</strong><span id="powerPercent">0%</span></div>
@@ -97,6 +105,7 @@
           <li><span class="rule-index">03</span> Complete linhas ou colunas para limpar blocos e fazer combos.</li>
           <li><span class="rule-index">04</span> A partida termina quando nenhuma peça disponível couber.</li>
           <li><span class="rule-index">05</span> Carregue o BLOQO POWER para remover um bloco ou mover a última peça colocada.</li>
+          <li><span class="rule-index">06</span> Complete linhas para aumentar seu multiplicador de pontos até ×5 nesta partida. Ele não altera a energia do BLOQO POWER.</li>
         </ol>
         <button id="startBtn" class="primary-button" type="button">Bora jogar <span aria-hidden="true">→</span></button>
       </section>

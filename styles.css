@@ -25,12 +25,22 @@ button:disabled{cursor:default}
 .icon-button:hover{background:#283e69}.icon-button:active{transform:scale(.94)}.icon-button svg{width:18px;height:18px}
 .icon-button.is-muted .sound-wave{display:none}.icon-button.is-muted{color:#71819e}
 .game-wrap{position:relative;width:min(100%,540px);margin:auto;padding:18px 19px 14px;background:linear-gradient(180deg,#1a2a4af0 0%,#162641ee 100%);border:1px solid #3a4d74;box-shadow:0 16px 60px #0000004a,inset 0 1px 0 #ffffff19;border-radius:27px}
-.scorebar{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:17px}
+.scorebar{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:10px}
 .score-card{position:relative;overflow:hidden;min-height:79px;padding:12px 17px 11px;border-radius:15px;border:1px solid #3d537e;background:linear-gradient(135deg,#273b62,#203455);box-shadow:inset 0 1px 0 #ffffff18}
 .score-best{background:linear-gradient(135deg,#30364e,#25324e);border-color:#50516d}
 .score-label{display:flex;align-items:center;gap:8px;font-family:Outfit,'Nunito',sans-serif;font-size:10px;font-weight:800;letter-spacing:.13em;color:#adbedc}
 .tiny-diamond{display:inline-block;width:9px;height:9px;transform:rotate(45deg);border-radius:2px}.tiny-diamond.blue{background:#64a0ff;box-shadow:0 0 10px #64a0ff80}.tiny-diamond.yellow{background:#ffbf58;box-shadow:0 0 10px #ffbf5880}
 .score-value{display:block;margin-top:4px;font-family:Outfit,'Nunito',sans-serif;font-size:32px;line-height:1.05;font-weight:800;letter-spacing:.01em;color:#fff}.score-best .score-value{color:#ffe0a0}
+.multiplier-strip{margin-bottom:12px;border:1px solid #55527e;border-radius:12px;padding:9px 12px;background:linear-gradient(115deg,#32365a,#28355b);box-shadow:inset 0 1px 0 #ffffff15}
+.multiplier-topline{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;font-family:Outfit,'Nunito',sans-serif;font-size:10px;font-weight:800;letter-spacing:.025em;color:#b9c8ec}
+.multiplier-name{display:flex;align-items:center;gap:8px;letter-spacing:.10em;color:#d8c8ff;white-space:nowrap}
+.multiplier-name strong{color:#fff0a8;border:1px solid #ffe4a676;border-radius:7px;padding:2px 7px;background:#ffe4a61b;font-size:14px;letter-spacing:0;min-width:37px;text-align:center}
+.multiplier-topline #multiplierHint{color:#c7bce8;letter-spacing:0;text-align:right}
+.multiplier-meter{height:5px;border-radius:10px;background:#131e3b;overflow:hidden;box-shadow:inset 0 1px 2px #0d112caa}
+.multiplier-fill{width:0;height:100%;border-radius:10px;background:linear-gradient(90deg,#a49bff,#ffc875);box-shadow:0 0 8px #ddaeff;transition:width .3s ease-out}
+.multiplier-strip.is-maxed{border-color:#ffd386aa;background:linear-gradient(115deg,#4c4261,#39446b)}
+.multiplier-strip.is-maxed .multiplier-name strong{background:#ffde8760;color:#fff8df}
+.multiplier-strip.level-up{animation:multiplierUp .65s ease-out}
 .power-panel{position:relative;margin-bottom:13px;padding:11px 12px 9px;border:1px solid #475577;background:linear-gradient(150deg,#243653,#1d304f);border-radius:14px;box-shadow:inset 0 1px 0 #fff2;transition:border-color .2s,box-shadow .2s}
 .power-topline{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;font-family:Outfit,'Nunito',sans-serif;letter-spacing:.11em;font-size:11px;color:#c3d4f4}
 .power-topline strong{color:#ffe09c;font-weight:900}.power-topline span{color:#eec77b;font-weight:900;letter-spacing:.03em}
@@ -104,7 +114,9 @@ button:disabled{cursor:default}
 @keyframes powerBreak{0%{transform:scale(1);filter:brightness(1)}45%{transform:scale(1.18) rotate(5deg);filter:brightness(2);background:#fff3b4}100%{transform:scale(.1) rotate(-12deg);opacity:0}}
 @keyframes energyFloat{0%{opacity:0;transform:translateY(14px) scale(.8)}20%{opacity:1}100%{opacity:0;transform:translateY(-32px) scale(1.08)}}
 @keyframes boardFlash{0%{box-shadow:0 7px 0 #0b152b,0 12px 23px #050b1e76,inset 0 0 0 1px #5d77a154}45%{box-shadow:0 7px 0 #0b152b,0 12px 23px #050b1e76,inset 0 0 0 2px #ffe19c,0 0 28px #ffc95e6c}100%{box-shadow:0 7px 0 #0b152b,0 12px 23px #050b1e76,inset 0 0 0 1px #5d77a154}}
+@keyframes multiplierUp{0%{transform:scale(1);box-shadow:inset 0 1px 0 #ffffff15}40%{transform:scale(1.025);box-shadow:0 0 18px #c9a4fa99}100%{transform:scale(1);box-shadow:inset 0 1px 0 #ffffff15}}
 @media(min-width:700px){.app-shell{padding-top:35px}.game-wrap{padding:21px 23px 18px}.board{gap:6px}.site-header{margin-bottom:24px}.piece-slot{height:125px}.piece-tray{min-height:125px}}
 @media(max-width:460px){.app-shell{width:calc(100% - 22px);padding-top:14px}.site-header{margin:0 6px 15px}.brand-text h1{font-size:27px}.brand-icon{grid-template-columns:repeat(2,14px);grid-template-rows:repeat(2,14px)}.header-actions{gap:5px}.icon-button{width:33px;height:33px;border-radius:9px}.game-wrap{padding:13px 12px 12px;border-radius:22px}.score-card{padding:10px 13px;min-height:74px}.score-value{font-size:29px}.power-panel{padding:9px 10px;margin-bottom:12px}.power-button{font-size:10px;padding:5px 4px;min-height:31px}.board{border-width:6px;gap:3px;padding:4px;border-radius:13px}.cell{border-radius:4px}.tray-section{padding-top:21px}.piece-tray{gap:7px;min-height:100px}.piece-slot{height:100px;border-radius:12px}.piece-shape{gap:2px}.piece-block{border-radius:3px}.tray-topline #trayHint{font-size:10px}.game-tip,.text-link{font-size:11px}.bottom-actions{padding-top:15px}.site-footer{font-size:8px;padding-top:18px}}
 @media(max-width:350px){.app-shell{width:calc(100% - 14px)}.game-wrap{padding:11px 9px}.scorebar{gap:7px}.score-label{font-size:9px}.piece-tray{gap:5px}.piece-slot{height:91px}.bottom-actions{align-items:flex-start}.game-tip{max-width:200px}.tray-topline #trayHint{max-width:168px}.brand-text h1{font-size:24px}}
+@media(max-width:390px){.multiplier-strip{padding:8px 9px}.multiplier-name{gap:5px;letter-spacing:.03em}.multiplier-topline{font-size:9px}.multiplier-name strong{font-size:13px;padding:2px 5px;min-width:30px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
