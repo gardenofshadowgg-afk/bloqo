@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#111b35" />
+    <meta name="description" content="BLOQO: um jogo original de blocos coloridos. Encaixe peças, complete linhas, faça combos e supere seu recorde." />
+    <title>BLOQO — Puzzle de Blocos</title>
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script defer src="./game.js"></script>
+  </head>
+  <body>
+    <div class="ambient ambient-one" aria-hidden="true"></div>
+    <div class="ambient ambient-two" aria-hidden="true"></div>
+
+    <main class="app-shell">
+      <header class="site-header">
+        <div class="brand-wrap">
+          <div class="brand-icon" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+          <div class="brand-text">
+            <h1>BLOQO<span class="brand-dot">.</span></h1>
+            <p>PUZZLE DE BLOCOS</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button id="helpBtn" class="icon-button" type="button" title="Como jogar" aria-label="Como jogar">?</button>
+          <button id="soundBtn" class="icon-button" type="button" title="Desativar sons" aria-label="Desativar som" aria-pressed="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path class="sound-wave" d="M15 9a5 5 0 0 1 0 6m3-9a9 9 0 0 1 0 12"/></svg>
+          </button>
+          <button id="restartBtn" class="icon-button" type="button" title="Recomeçar" aria-label="Recomeçar partida">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2.9 6.6"/><path d="M3 4v7h7"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <section class="game-wrap" aria-label="Jogo de encaixar blocos">
+        <div class="scorebar">
+          <div class="score-card score-current">
+            <div class="score-label"><span class="tiny-diamond blue"></span> PONTUAÇÃO</div>
+            <strong id="score" class="score-value" aria-live="polite">0</strong>
+          </div>
+          <div class="score-card score-best">
+            <div class="score-label"><span class="tiny-diamond yellow"></span> RECORDE</div>
+            <strong id="best" class="score-value">0</strong>
+          </div>
+        </div>
+
+        <div class="game-board-area">
+          <div class="board-topline"><span><i class="live-dot"></i> MODO CLÁSSICO</span><span id="comboCounter" class="combo-badge" hidden>COMBO ×2</span></div>
+          <div id="board" class="board" role="grid" aria-label="Tabuleiro de 8 linhas por 8 colunas"></div>
+          <div id="boardToast" class="board-toast" role="status" aria-live="polite"></div>
+        </div>
+
+        <div class="tray-section">
+          <div class="tray-topline"><span>SUAS PEÇAS</span><span id="trayHint">Toque numa peça e depois no tabuleiro</span></div>
+          <div id="pieceTray" class="piece-tray" aria-label="Três peças disponíveis"></div>
+        </div>
+
+        <div class="bottom-actions">
+          <span class="game-tip"><span class="sparkle">✦</span> Complete linhas e colunas para pontuar!</span>
+          <button id="tipsBtn" type="button" class="text-link">Como jogar <span aria-hidden="true">↗</span></button>
+        </div>
+      </section>
+
+      <footer class="site-footer">UM JOGO ORIGINAL <strong>BLOQO</strong> <span>·</span> FEITO PARA SUA PRÓXIMA JOGADA</footer>
+    </main>
+
+    <div id="dragGhost" class="drag-ghost" aria-hidden="true"></div>
+
+    <div id="helpModal" class="modal-backdrop" hidden>
+      <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+        <div class="modal-emblem" aria-hidden="true">✦</div>
+        <div class="modal-eyebrow">SIMPLES DE APRENDER</div>
+        <h2 id="helpTitle">Como jogar</h2>
+        <ol class="rules">
+          <li><span class="rule-index">01</span> Selecione uma das três peças coloridas.</li>
+          <li><span class="rule-index">02</span> Toque no tabuleiro para encaixá-la — ou arraste a peça até ele.</li>
+          <li><span class="rule-index">03</span> Complete linhas ou colunas para limpar blocos e fazer combos.</li>
+          <li><span class="rule-index">04</span> A partida termina quando nenhuma peça disponível couber.</li>
+        </ol>
+        <button id="startBtn" class="primary-button" type="button">Bora jogar <span aria-hidden="true">→</span></button>
+      </section>
+    </div>
+
+    <div id="gameOverModal" class="modal-backdrop" hidden>
+      <section class="modal-card over-card" role="dialog" aria-modal="true" aria-labelledby="overTitle">
+        <div class="modal-emblem trophy" aria-hidden="true">★</div>
+        <div class="modal-eyebrow">FIM DE PARTIDA</div>
+        <h2 id="overTitle">Boa jogada!</h2>
+        <p class="modal-subtext">Cada bloco conta. Que tal tentar de novo?</p>
+        <div class="final-score"><span>SUA PONTUAÇÃO</span><strong id="finalScore">0</strong><small id="bestMessage">Continue quebrando recordes!</small></div>
+        <button id="againBtn" class="primary-button" type="button">Jogar novamente <span aria-hidden="true">→</span></button>
+      </section>
+    </div>
+  </body>
+</html>
