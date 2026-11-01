@@ -7,8 +7,17 @@
     <meta name="description" content="BLOQO: um jogo original de blocos coloridos. Encaixe peças, complete linhas, faça combos e supere seu recorde." />
     <title>BLOQO — Puzzle de Blocos</title>
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./icon-192.png" />
     <link rel="stylesheet" href="./styles.css" />
     <script defer src="./game.js"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("./sw.js").catch(() => {});
+        });
+      }
+    </script>
   </head>
   <body>
     <div class="ambient ambient-one" aria-hidden="true"></div>
