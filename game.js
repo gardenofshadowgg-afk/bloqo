@@ -89,8 +89,12 @@
   const multiplierHintEl = $('multiplierHint');
   const multiplierFillEl = $('multiplierFill');
   const multiplierMeterEl = multiplierPanelEl.querySelector('.multiplier-meter');
+  const multiplierMiniEl = $('multiplierMini');
   const journeyEl = $('journeyModal');
   const comboEffectsEl = $('comboEffects');
+  const screenViewportEl = $('screenViewport');
+  const screenTrackEl = $('screenTrack');
+  let activeScreen = 'play';
   let gameMode = 'classic';
   let dailyMoves = 0;
   let dailyRandom = null;
@@ -344,6 +348,7 @@
     const nextGoal = maxed ? currentGoal : MULTIPLIER_MILESTONES[multiplier];
     const progress = maxed ? 1 : (linesCleared - currentGoal) / (nextGoal - currentGoal);
     multiplierValueEl.textContent = `×${multiplier}`;
+    multiplierMiniEl.textContent = `×${multiplier}`;
     multiplierHintEl.textContent = maxed
       ? 'MÁXIMO! Pontos ×5'
       : `${linesCleared - currentGoal}/${nextGoal - currentGoal} linhas para ×${multiplier + 1}`;
@@ -929,11 +934,49 @@
   $('startBtn').addEventListener('click', hideHelp);
   $('helpModal').addEventListener('click', e => { if (e.target.id === 'helpModal') hideHelp(); });
   $('againBtn').addEventListener('click', newGame);
+  function setScreen(next) {
+    activeScreen = next === 'extras' ? 'extras' : 'play';
+    const playing = activeScreen === 'play';
+    screenTrackEl.style.transform = playing ? 'translateX(0)' : 'translateX(-100%)';
+    $('playTab').classList.toggle('active', playing);
+    $('extrasTab').classList.toggle('active', !playing);
+    $('playTab').setAttribute('aria-pressed', String(playing));
+    $('extrasTab').setAttribute('aria-pressed', String(!playing));
+    $('playScreen').setAttribute('aria-hidden', String(!playing));
+    $('extrasScreen').setAttribute('aria-hidden', String(playing));
+    $('playScreen').inert = !playing;
+    $('extrasScreen').inert = playing;
+  }
+
+  $('playTab').addEventListener('click', () => setScreen('play'));
+  $('extrasTab').addEventListener('click', () => setScreen('extras'));
+  $('backToPlayBtn').addEventListener('click', () => setScreen('play'));
+
+  // Swipes start only in inactive interface areas. Dragging a piece or using
+  // a power must never accidentally switch screens.
+  let swipeStart = null;
+  screenViewportEl.addEventListener('touchstart', e => {
+    swipeStart = null;
+    if (e.touches.length !== 1 || e.target.closest('#board, #pieceTray, button, input, [role="progressbar"]')) return;
+    swipeStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }, { passive: true });
+  screenViewportEl.addEventListener('touchend', e => {
+    if (!swipeStart || !e.changedTouches.length) return;
+    const dx = e.changedTouches[0].clientX - swipeStart.x;
+    const dy = e.changedTouches[0].clientY - swipeStart.y;
+    if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.35) {
+      setScreen(dx < 0 ? 'extras' : 'play');
+    }
+    swipeStart = null;
+  }, { passive: true });
+  screenViewportEl.addEventListener('touchcancel', () => { swipeStart = null; });
+
   function switchMode(next) {
-    if (next === gameMode) return;
+    if (next === gameMode) { setScreen('play'); return; }
     if (!gameOver && score > 0 && !window.confirm('Mudar de modo vai reiniciar esta partida. Continuar?')) return;
     gameMode = next;
     newGame();
+    setScreen('play');
     showToast(next === 'daily' ? '☀ DESAFIO DO DIA' : next === 'zen' ? '🌿 MODO ZEN' : '✦ MODO CLÁSSICO');
   }
   $('classicBtn').addEventListener('click', () => switchMode('classic'));
@@ -965,6 +1008,7 @@
   $('restartBtn').addEventListener('click', () => {
     if (!gameOver && score > 0 && !window.confirm('Quer recomeçar? Sua pontuação atual será perdida.')) return;
     newGame();
+    setScreen('play');
   });
   $('soundBtn').addEventListener('click', () => {
     soundEnabled = !soundEnabled;
@@ -990,4 +1034,5 @@
   applyTheme();
   saveJourney();
   newGame();
+  setScreen('play');
 })();

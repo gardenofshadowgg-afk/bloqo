@@ -171,3 +171,68 @@ button:disabled{cursor:default}
 .game-wrap[data-theme="gold"] .score-card{background:#604c42;border-color:#bc8c55}
 .game-wrap.zen-mode .mode-tab.active{border-color:#64dcb7;background:#1a665c;color:#dfffee}
 @media(max-width:460px){.board-topline{align-items:flex-start}.mode-tab{padding:5px 7px;font-size:9px}.combo-badge{font-size:9px}.journey-card{padding:18px 14px 26px}.collection-item{min-height:100px}.collection-grid{gap:5px}.journey-entry{padding:9px 8px}.journey-entry strong{font-size:11px}}
+
+/* BLOQO v4.1 · A focused game screen and a swipeable extras screen */
+.screen-navigation{display:flex;align-items:center;gap:7px;margin-bottom:12px}
+.screen-tab{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:8px 18px;min-width:99px;border-radius:11px;border:1px solid #40577c;background:#152542;color:#99b2d6;font:800 13px Outfit,'Nunito',sans-serif;letter-spacing:.01em;transition:background .18s,border-color .18s,color .18s,transform .18s}
+.screen-tab.active{border-color:#73b9ff;color:#f1f8ff;background:linear-gradient(120deg,#31558a,#23436c);box-shadow:inset 0 1px 0 #ffffff30,0 0 12px #5c9cf51c}
+.screen-tab:active{transform:scale(.96)}
+.swipe-hint{margin-left:auto;color:#8c9fbe;font-size:10px;letter-spacing:.04em;font-weight:800;white-space:nowrap}
+.screen-viewport{width:100%;overflow:hidden;touch-action:pan-y;isolation:isolate}
+.screen-track{display:flex;align-items:flex-start;width:100%;transform:translateX(0);transition:transform .32s cubic-bezier(.2,.75,.28,1);will-change:transform}
+.screen-page{min-width:0;flex:0 0 100%;width:100%}
+.screen-page[aria-hidden="true"]{pointer-events:none}
+.play-screen .scorebar{margin-bottom:8px}
+.play-screen .score-card{min-height:68px;padding:9px 12px 8px}
+.play-screen .score-value{font-size:28px;margin-top:3px}
+.play-status{display:flex;justify-content:space-between;align-items:center;gap:7px;margin:0 2px 8px;min-height:24px;font:800 11px Outfit,'Nunito',sans-serif;color:#b8c8e6}
+.play-status>span:first-child{white-space:nowrap}
+.play-status strong{display:inline-block;margin-left:5px;padding:3px 8px;border:1px solid #aa93d866;border-radius:8px;background:#a591e81c;color:#f1ddff;font-size:12px}
+.play-screen .power-panel{padding:8px 11px;margin-bottom:9px;border-radius:11px}
+.play-screen .power-topline{font-size:10px;margin-bottom:5px;letter-spacing:.09em}
+.play-screen .power-meter{height:8px}
+.play-screen .power-panel:not(.is-ready) .power-actions,.play-screen .power-panel:not(.is-ready) .power-hint{display:none}
+.play-screen .power-panel.is-ready .power-actions{margin-top:8px}
+.play-screen .power-panel.is-ready .power-hint{margin-top:5px}
+.play-screen .tray-section{padding-top:17px}
+.play-screen .tray-topline{margin-bottom:8px}
+.play-screen .piece-tray{min-height:98px}
+.play-screen .piece-slot{height:98px}
+.play-footer-hint{text-align:center;color:#879bbd;font-size:10px;font-weight:700;margin:13px 0 0}
+.play-footer-hint strong{color:#d2c5ff}
+.extras-screen{padding:6px 0 8px}
+.extras-heading{display:flex;align-items:center;gap:11px;margin:1px 2px 16px}
+.extras-icon{display:grid;place-items:center;flex:0 0 41px;height:41px;background:linear-gradient(140deg,#7567ab,#4b4788);border-radius:12px;color:#ffe3a2;font-size:23px;box-shadow:inset 0 1px 0 #ffffff30}
+.extras-heading h2{font:900 19px Outfit,'Nunito',sans-serif;margin:0 0 3px;color:#f6f0ff}
+.extras-heading p{margin:0;color:#9eb2d3;font-size:11px;font-weight:700}
+.extras-screen .multiplier-strip{padding:13px 13px 12px;margin-bottom:13px;border-radius:15px}
+.extras-screen .multiplier-topline{margin-bottom:12px}
+.extras-screen .multiplier-meter{height:8px}
+.extras-note{color:#bac4e1;font-size:11px;line-height:1.5;font-weight:700;margin:11px 0 0}
+.extras-section{padding:16px 15px;margin-bottom:13px;background:linear-gradient(145deg,#253856,#1c2e4b);border:1px solid #435779;border-radius:15px;box-shadow:inset 0 1px 0 #ffffff12}
+.extras-section h3{font:900 15px Outfit,'Nunito',sans-serif;margin:0 0 6px;color:#e4edff}
+.extras-section p{font-size:11px;line-height:1.5;font-weight:700;color:#aabbda;margin:0 0 12px}
+.extras-section .mode-tabs{gap:8px}
+.extras-section .mode-tab{flex:1;font-size:12px;padding:10px 8px;border-radius:9px;min-height:40px}
+.extras-section .daily-status{margin:11px 0 0;color:#f3d286;font-weight:800}
+.extras-section .journey-open{justify-content:space-between;width:100%;padding:13px 14px;font-size:14px}
+.help-section{display:flex;justify-content:space-between;align-items:center;gap:14px}
+.help-section p{margin:0}
+.help-section .text-link{flex-shrink:0}
+.back-play-button{display:block;width:100%;padding:12px 16px;background:#172846;border:1px solid #465f88;border-radius:12px;color:#bdd5ff;font:800 13px Outfit,'Nunito',sans-serif}
+.back-play-button:active{background:#27466d}
+@media(max-width:460px){
+  .game-wrap{padding:12px 11px 13px}
+  .screen-navigation{margin-bottom:10px}
+  .screen-tab{font-size:12px;padding:7px 12px;min-width:80px}
+  .swipe-hint{font-size:9px}
+  .play-screen .score-card{min-height:62px;padding:8px 10px}
+  .play-screen .score-value{font-size:26px}
+  .play-screen .power-panel{padding:7px 9px;margin-bottom:8px}
+  .play-screen .piece-tray{min-height:92px}
+  .play-screen .piece-slot{height:92px}
+  .play-screen .tray-section{padding-top:15px}
+  .extras-section{padding:14px 11px}
+  .extras-section .mode-tab{font-size:11px}
+}
+@media(prefers-reduced-motion:reduce){.screen-track{transition:none}}

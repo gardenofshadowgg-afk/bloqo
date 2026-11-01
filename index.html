@@ -44,57 +44,89 @@
       </header>
 
       <section id="gameWrap" class="game-wrap" aria-label="Jogo de encaixar blocos" data-theme="classic">
-        <div class="scorebar">
-          <div class="score-card score-current">
-            <div class="score-label"><span class="tiny-diamond blue"></span> PONTUAÇÃO</div>
-            <strong id="score" class="score-value" aria-live="polite">0</strong>
-          </div>
-          <div class="score-card score-best">
-            <div class="score-label"><span class="tiny-diamond yellow"></span> RECORDE</div>
-            <strong id="best" class="score-value">0</strong>
-          </div>
-        </div>
+        <nav class="screen-navigation" aria-label="Telas do BLOQO">
+          <button id="playTab" class="screen-tab active" type="button" aria-pressed="true">▦ Jogar</button>
+          <button id="extrasTab" class="screen-tab" type="button" aria-pressed="false">✦ Extras</button>
+          <span class="swipe-hint">Deslize ↔</span>
+        </nav>
 
-        <div id="multiplierPanel" class="multiplier-strip" aria-label="Multiplicador de pontos">
-          <div class="multiplier-topline">
-            <span class="multiplier-name">✦ MULTIPLICADOR <strong id="multiplierValue">×1</strong></span>
-            <span id="multiplierHint">0/2 linhas para ×2</span>
-          </div>
-          <div class="multiplier-meter" role="progressbar" aria-label="Progresso do próximo multiplicador" aria-valuemin="0" aria-valuemax="2" aria-valuenow="0"><div id="multiplierFill" class="multiplier-fill"></div></div>
-        </div>
+        <div id="screenViewport" class="screen-viewport">
+          <div id="screenTrack" class="screen-track">
+            <section id="playScreen" class="screen-page play-screen" aria-label="Tabuleiro e suas peças">
+              <div class="scorebar">
+                <div class="score-card score-current">
+                  <div class="score-label"><span class="tiny-diamond blue"></span> PONTUAÇÃO</div>
+                  <strong id="score" class="score-value" aria-live="polite">0</strong>
+                </div>
+                <div class="score-card score-best">
+                  <div class="score-label"><span class="tiny-diamond yellow"></span> RECORDE</div>
+                  <strong id="best" class="score-value">0</strong>
+                </div>
+              </div>
 
-        <div class="game-board-area">
-          <div id="powerPanel" class="power-panel" aria-label="Energia BLOQO POWER">
-            <div class="power-topline"><strong>⚡ BLOQO POWER</strong><span id="powerPercent">0%</span></div>
-            <div class="power-meter" role="progressbar" aria-label="Energia para usar um poder" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="powerFill" class="power-fill"></div></div>
-            <div class="power-actions">
-              <button id="removePowerBtn" class="power-button" type="button" disabled>✦ Remover bloco</button>
-              <button id="movePowerBtn" class="power-button" type="button" disabled>↔ Mover última peça</button>
-            </div>
-            <p id="powerHint" class="power-hint" aria-live="polite">Complete linhas e faça combos para carregar.</p>
-          </div>
-          <div class="board-topline">
-            <div class="mode-tabs" role="group" aria-label="Escolher modo de jogo">
-              <button id="classicBtn" class="mode-tab active" type="button" aria-pressed="true">Clássico</button>
-              <button id="dailyBtn" class="mode-tab" type="button" aria-pressed="false">Desafio</button>
-              <button id="zenBtn" class="mode-tab" type="button" aria-pressed="false">Zen</button>
-            </div>
-            <span id="comboCounter" class="combo-badge" hidden>COMBO ×2</span>
-          </div>
-          <p id="dailyStatus" class="daily-status" hidden></p>
-          <div id="board" class="board" role="grid" aria-label="Tabuleiro de 8 linhas por 8 colunas"></div>
-          <div id="comboEffects" class="combo-effects" aria-hidden="true"></div>
-          <div id="boardToast" class="board-toast" role="status" aria-live="polite"></div>
-        </div>
+              <div class="game-board-area">
+                <div class="play-status">
+                  <span>✦ Multiplicador <strong id="multiplierMini">×1</strong></span>
+                  <span id="comboCounter" class="combo-badge" hidden>COMBO ×2</span>
+                </div>
+                <div id="powerPanel" class="power-panel" aria-label="Energia BLOQO POWER">
+                  <div class="power-topline"><strong>⚡ BLOQO POWER</strong><span id="powerPercent">0%</span></div>
+                  <div class="power-meter" role="progressbar" aria-label="Energia para usar um poder" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="powerFill" class="power-fill"></div></div>
+                  <div class="power-actions">
+                    <button id="removePowerBtn" class="power-button" type="button" disabled>✦ Remover bloco</button>
+                    <button id="movePowerBtn" class="power-button" type="button" disabled>↔ Mover última peça</button>
+                  </div>
+                  <p id="powerHint" class="power-hint" aria-live="polite">Complete linhas e faça combos para carregar.</p>
+                </div>
+                <div id="board" class="board" role="grid" aria-label="Tabuleiro de 8 linhas por 8 colunas"></div>
+                <div id="comboEffects" class="combo-effects" aria-hidden="true"></div>
+                <div id="boardToast" class="board-toast" role="status" aria-live="polite"></div>
+              </div>
 
-        <div class="tray-section">
-          <div class="tray-topline"><span>SUAS PEÇAS</span><span id="trayHint">Toque numa peça e depois no tabuleiro</span></div>
-          <div id="pieceTray" class="piece-tray" aria-label="Três peças disponíveis"></div>
-        </div>
+              <div class="tray-section">
+                <div class="tray-topline"><span>SUAS PEÇAS</span><span id="trayHint">Toque numa peça e depois no tabuleiro</span></div>
+                <div id="pieceTray" class="piece-tray" aria-label="Três peças disponíveis"></div>
+              </div>
+              <p class="play-footer-hint">✦ Sua Jornada e outros modos estão em <strong>Extras</strong>.</p>
+            </section>
 
-        <div class="bottom-actions">
-          <button id="journeyBtn" class="journey-open" type="button">✦ Jornada <span id="starsBadge">0 ★</span></button>
-          <button id="tipsBtn" type="button" class="text-link">Como jogar <span aria-hidden="true">↗</span></button>
+            <section id="extrasScreen" class="screen-page extras-screen" aria-label="Modos, multiplicador e coleções" aria-hidden="true" inert>
+              <div class="extras-heading"><span class="extras-icon">✦</span><div><h2>Seu espaço BLOQO</h2><p>Modos, conquistas e evolução da partida</p></div></div>
+
+              <div id="multiplierPanel" class="multiplier-strip" aria-label="Multiplicador de pontos">
+                <div class="multiplier-topline">
+                  <span class="multiplier-name">✦ MULTIPLICADOR <strong id="multiplierValue">×1</strong></span>
+                  <span id="multiplierHint">0/2 linhas para ×2</span>
+                </div>
+                <div class="multiplier-meter" role="progressbar" aria-label="Progresso do próximo multiplicador" aria-valuemin="0" aria-valuemax="2" aria-valuenow="0"><div id="multiplierFill" class="multiplier-fill"></div></div>
+                <p class="extras-note">O multiplicador aumenta seus pontos, mas não acelera o BLOQO POWER.</p>
+              </div>
+
+              <div class="extras-section">
+                <h3>▦ Modos de jogo</h3>
+                <p>Escolha como quer jogar. Ao trocar de modo, uma nova partida começa.</p>
+                <div class="mode-tabs" role="group" aria-label="Escolher modo de jogo">
+                  <button id="classicBtn" class="mode-tab active" type="button" aria-pressed="true">Clássico</button>
+                  <button id="dailyBtn" class="mode-tab" type="button" aria-pressed="false">Desafio</button>
+                  <button id="zenBtn" class="mode-tab" type="button" aria-pressed="false">Zen</button>
+                </div>
+                <p id="dailyStatus" class="daily-status" hidden></p>
+              </div>
+
+              <div class="extras-section journey-section">
+                <h3>★ Sua Jornada</h3>
+                <p>Missões diárias, estrelas, temas e itens de coleção desbloqueados por pontuação.</p>
+                <button id="journeyBtn" class="journey-open" type="button">✦ Abrir Jornada <span id="starsBadge">0 ★</span></button>
+              </div>
+
+              <div class="extras-section help-section">
+                <h3>? Precisa de ajuda?</h3>
+                <p>Aprenda a usar os poderes e descobrir combos especiais.</p>
+                <button id="tipsBtn" type="button" class="text-link">Como jogar <span aria-hidden="true">↗</span></button>
+              </div>
+              <button id="backToPlayBtn" class="back-play-button" type="button">← Voltar ao tabuleiro</button>
+            </section>
+          </div>
         </div>
       </section>
 
