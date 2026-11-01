@@ -1,4 +1,4 @@
-const CACHE_NAME = "bloqo-offline-v3-multiplier";
+const CACHE_NAME = "bloqo-offline-v4-journey";
 const FILES = [
   "./",
   "./index.html",

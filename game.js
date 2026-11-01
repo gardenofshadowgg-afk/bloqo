@@ -6,6 +6,33 @@
   // The multiplier affects points only. The BLOQO POWER energy formula stays independent.
   const MULTIPLIER_MILESTONES = [0, 2, 5, 9, 14];
   const COLORS = ['#5f9eff', '#ffbd57', '#ff647e', '#55d3a0', '#ae86fc', '#5ccee9'];
+  const DAILY_TARGET = 1200;
+  const DAILY_LIMIT = 20;
+  const COLLECTIONS = [
+    { id:'crystal', icon:'💎', name:'Cristal Azul', goal:500 },
+    { id:'flame', icon:'🔥', name:'Chama Aurora', goal:1500 },
+    { id:'ruby', icon:'♦', name:'Núcleo Rubi', goal:2500 },
+    { id:'crown', icon:'👑', name:'Coroa Solar', goal:5000 },
+    { id:'galaxy', icon:'🌌', name:'Universo BLOQO', goal:10000 }
+  ];
+  const THEMES = [
+    { id:'classic', icon:'🌙', name:'Original', cost:0 },
+    { id:'neon', icon:'💜', name:'Neon', cost:4 },
+    { id:'aurora', icon:'🌿', name:'Aurora', cost:8 },
+    { id:'gold', icon:'☀', name:'Solar', cost:12 }
+  ];
+  const ACHIEVEMENTS = [
+    { id:'firstLine', icon:'✨', name:'Primeira linha' },
+    { id:'firstPower', icon:'⚡', name:'Primeiro poder' },
+    { id:'multiplier5', icon:'✖', name:'Multiplicador ×5' },
+    { id:'collector', icon:'💎', name:'Primeiro colecionável' },
+    { id:'dailyWinner', icon:'🏆', name:'Desafio diário vencido' }
+  ];
+  const MISSIONS = [
+    { id:'lines', name:'Complete 6 linhas', goal:6 },
+    { id:'points', name:'Ganhe 2.000 pontos', goal:2000 },
+    { id:'powers', name:'Use 2 poderes', goal:2 }
+  ];
   const SHAPES = [
     [[0,0],[0,1]],
     [[0,0],[1,0]],
@@ -62,6 +89,12 @@
   const multiplierHintEl = $('multiplierHint');
   const multiplierFillEl = $('multiplierFill');
   const multiplierMeterEl = multiplierPanelEl.querySelector('.multiplier-meter');
+  const journeyEl = $('journeyModal');
+  const comboEffectsEl = $('comboEffects');
+  let gameMode = 'classic';
+  let dailyMoves = 0;
+  let dailyRandom = null;
+  let journey;
 
   let board, hand, score, combo, best, startBest;
   let linesCleared = 0;
@@ -88,6 +121,131 @@
     catch { return 0; }
   };
   const saveBest = value => { try { localStorage.setItem('bloqo-best', String(value)); } catch { /* storage is optional */ } };
+  journey = loadJourney();
+
+  function todayKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  function loadJourney() {
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem('bloqo-journey-v4') || '{}') || {}; } catch { /* new profile */ }
+    const owned = Array.isArray(saved.owned) ? saved.owned : ['classic'];
+    const profile = {
+      stars: Math.max(0, Math.floor(Number(saved.stars) || 0)),
+      owned: Array.from(new Set(['classic', ...owned.filter(x => THEMES.some(t => t.id === x))])),
+      theme: THEMES.some(t => t.id === saved.theme && owned.includes(t.id)) ? saved.theme : 'classic',
+      collections: Array.isArray(saved.collections) ? saved.collections : [],
+      achievements: Array.isArray(saved.achievements) ? saved.achievements : [],
+      rankings: Array.isArray(saved.rankings) ? saved.rankings.filter(x => Number.isFinite(x.score)).slice(0,5) : [],
+      daily: saved.daily || {}, dailyChallenge: saved.dailyChallenge || {}
+    };
+    if (profile.daily.date !== todayKey()) profile.daily = { date:todayKey(), lines:0, points:0, powers:0, claimed:[] };
+    if (!Array.isArray(profile.daily.claimed)) profile.daily.claimed = [];
+    if (profile.dailyChallenge.date !== todayKey()) profile.dailyChallenge = { date:todayKey(), won:false };
+    // Respect records achieved before the collection existed.
+    const oldBest = getSavedBest();
+    for (const item of COLLECTIONS) if (oldBest >= item.goal && !profile.collections.includes(item.id)) profile.collections.push(item.id);
+    if (profile.collections.length && !profile.achievements.includes('collector')) profile.achievements.push('collector');
+    return profile;
+  }
+
+  function saveJourney() {
+    try { localStorage.setItem('bloqo-journey-v4', JSON.stringify(journey)); } catch { /* private mode */ }
+    $('starsBadge').textContent = `${journey.stars} ★`;
+  }
+
+  function refreshDay() {
+    if (journey.daily.date !== todayKey()) journey.daily = { date:todayKey(), lines:0, points:0, powers:0, claimed:[] };
+    if (journey.dailyChallenge.date !== todayKey()) journey.dailyChallenge = { date:todayKey(), won:false };
+  }
+
+  function earnAchievement(id) {
+    if (gameMode === 'zen' || journey.achievements.includes(id)) return;
+    journey.achievements.push(id);
+    saveJourney();
+  }
+
+  function unlockCollections() {
+    if (gameMode !== 'classic') return;
+    let newItem = null;
+    for (const item of COLLECTIONS) {
+      if (score >= item.goal && !journey.collections.includes(item.id)) {
+        journey.collections.push(item.id);
+        newItem = item;
+      }
+    }
+    if (newItem) {
+      earnAchievement('collector');
+      saveJourney();
+      showToast(`${newItem.icon} ${newItem.name} LIBERADO!`);
+    }
+  }
+
+  function updateMission(stat, count) {
+    if (gameMode === 'zen' || count <= 0) return;
+    refreshDay();
+    journey.daily[stat] = Math.max(0, (journey.daily[stat] || 0) + count);
+    for (const mission of MISSIONS) {
+      if (journey.daily[mission.id] >= mission.goal && !journey.daily.claimed.includes(mission.id)) {
+        journey.daily.claimed.push(mission.id);
+        journey.stars += 2;
+      }
+    }
+    saveJourney();
+  }
+
+  function addPoints(amount) {
+    score += amount;
+    updateMission('points', amount);
+    unlockCollections();
+  }
+
+  function renderJourney() {
+    refreshDay();
+    $('starsTotal').textContent = journey.stars;
+    $('missionList').innerHTML = MISSIONS.map(m => {
+      const progress = Math.min(m.goal, journey.daily[m.id] || 0);
+      const done = journey.daily.claimed.includes(m.id);
+      return `<div class="journey-entry"><span>${done ? '✅' : '☀'} <strong>${m.name}</strong><small>${progress.toLocaleString('pt-BR')}/${m.goal.toLocaleString('pt-BR')}</small></span><b>${done ? 'Concluída · +2 ★' : '+2 ★'}</b></div>`;
+    }).join('');
+    $('collectionGrid').innerHTML = COLLECTIONS.map(item => {
+      const owned = journey.collections.includes(item.id);
+      return `<div class="collection-item ${owned ? 'unlocked' : 'locked'}"><span class="collection-emoji">${owned ? item.icon : '🔒'}</span><strong>${owned ? item.name : 'Item secreto'}</strong><small>${owned ? 'DESCOBERTO' : `${item.goal.toLocaleString('pt-BR')} pontos`}</small></div>`;
+    }).join('');
+    $('themeList').innerHTML = THEMES.map(theme => {
+      const owned = journey.owned.includes(theme.id);
+      const selected = journey.theme === theme.id;
+      return `<div class="journey-entry"><span>${theme.icon} <strong>${theme.name}</strong><small>${owned ? 'Seu tema' : `${theme.cost} estrelas`}</small></span><button class="theme-pick" data-theme-id="${theme.id}" ${selected || (!owned && journey.stars < theme.cost) ? 'disabled' : ''}>${selected ? 'Em uso' : owned ? 'Usar' : `Comprar ★${theme.cost}`}</button></div>`;
+    }).join('');
+    $('achievementList').innerHTML = ACHIEVEMENTS.map(a => `<div class="journey-entry achievement ${journey.achievements.includes(a.id) ? 'achieved' : ''}"><span>${journey.achievements.includes(a.id) ? a.icon : '🔒'} <strong>${a.name}</strong></span><b>${journey.achievements.includes(a.id) ? '✓' : '—'}</b></div>`).join('');
+    $('rankingList').innerHTML = journey.rankings.length ? journey.rankings.map((entry,i) => `<div class="journey-entry"><span><strong>#${i+1} · ${Number(entry.score).toLocaleString('pt-BR')} pontos</strong><small>${entry.date || 'Clássico'}</small></span><b>★</b></div>`).join('') : '<p class="journey-empty">Termine uma partida Clássica para entrar no ranking.</p>';
+    saveJourney();
+  }
+
+  function applyTheme() {
+    $('gameWrap').dataset.theme = journey.theme;
+  }
+
+  function createDailyRandom() {
+    let seed = 2166136261;
+    for (const ch of todayKey()) seed = Math.imul(seed ^ ch.charCodeAt(0), 16777619);
+    return () => {
+      seed = (Math.imul(seed,1664525) + 1013904223) >>> 0;
+      return seed / 4294967296;
+    };
+  }
+
+  function updateModeUI() {
+    for (const [id,mode] of [['classicBtn','classic'],['dailyBtn','daily'],['zenBtn','zen']]) {
+      $(id).classList.toggle('active', gameMode === mode);
+      $(id).setAttribute('aria-pressed', String(gameMode === mode));
+    }
+    $('dailyStatus').hidden = gameMode !== 'daily';
+    $('dailyStatus').textContent = `DESAFIO ${todayKey().split('-').reverse().slice(0,2).join('/')} · Meta ${DAILY_TARGET.toLocaleString('pt-BR')} pontos · ${Math.max(0,DAILY_LIMIT-dailyMoves)} peças restantes${journey.dailyChallenge.won ? ' · ★ Já concluído hoje' : ''}`;
+    $('gameWrap').classList.toggle('zen-mode',gameMode === 'zen');
+  }
 
   // Original, softly tuned sound effects (no looping music or external audio).
   // Each note has a rounded attack/decay so repeated moves stay comfortable.
@@ -137,8 +295,9 @@
   function randomPiece() {
     // Favor short, easy pieces while still introducing bigger shapes.
     const pool = score < 500 ? SHAPES.slice(0, 21) : SHAPES;
-    const cells = pool[Math.floor(Math.random() * pool.length)].map(([r,c]) => [r,c]);
-    return { cells, color: COLORS[Math.floor(Math.random() * COLORS.length)] };
+    const random = dailyRandom || Math.random;
+    const cells = pool[Math.floor(random() * pool.length)].map(([r,c]) => [r,c]);
+    return { cells, color: COLORS[Math.floor(random() * COLORS.length)] };
   }
 
   function makeHand() {
@@ -170,7 +329,7 @@
 
   function updateScore() {
     scoreEl.textContent = score.toLocaleString('pt-BR');
-    if (score > best) {
+    if (gameMode === 'classic' && score > best) {
       best = score;
       saveBest(best);
     }
@@ -205,6 +364,7 @@
     }
     updateMultiplier();
     if (multiplier !== previous) {
+      if (multiplier >= 5) earnAchievement('multiplier5');
       multiplierPanelEl.classList.remove('level-up');
       void multiplierPanelEl.offsetWidth;
       multiplierPanelEl.classList.add('level-up');
@@ -397,8 +557,9 @@
     const cells = getCells(piece, r, c);
     cells.forEach(([rr,cc]) => { board[rr][cc] = piece.color; });
     lastPlaced = { piece: { cells: piece.cells.map(cell => [...cell]), color: piece.color }, r, c, cells };
-    score += cells.length * 10 * multiplier;
+    addPoints(cells.length * 10 * multiplier);
     addEnergy(10);
+    if (gameMode === 'daily') dailyMoves++;
     hand[index] = null;
     selectedSlot = -1;
     hoverCell = null;
@@ -423,7 +584,9 @@
       const total = rows.length + cols.length;
       const upgraded = advanceMultiplier(total);
       const linePoints = (total * 120 + (combo > 1 ? (combo - 1) * 80 : 0)) * multiplier;
-      score += linePoints;
+      addPoints(linePoints);
+      updateMission('lines',total);
+      earnAchievement('firstLine');
       addEnergy(total * 25 + (combo > 1 ? 40 : 0));
       updateScore();
       const marked = new Set();
@@ -436,6 +599,7 @@
       boardEl.classList.remove('line-celebration');
       void boardEl.offsetWidth;
       boardEl.classList.add('line-celebration');
+      if (combo >= 2 || total > 1) celebrateCombo(combo,total);
       showToast(upgraded ? `MULTIPLICADOR ×${multiplier}! ✦` : combo > 1 ? `COMBO ×${combo}! +${linePoints}` : total > 1 ? `INCRÍVEL! ${total} LINHAS` : 'LINHA COMPLETA!');
       if (!upgraded) playSound(combo > 1 ? 'combo' : 'clear');
       setTimeout(() => {
@@ -458,22 +622,78 @@
   }
 
   function finishTurn() {
+    if (gameOver) return;
     if (hand.every(piece => piece === null)) hand = makeHand();
     renderBoard();
     renderHand();
     updateScore();
     updatePower();
+    updateModeUI();
+    if (gameMode === 'daily' && score >= DAILY_TARGET) {
+      endGame(true);
+      return;
+    }
+    if (gameMode === 'daily' && dailyMoves >= DAILY_LIMIT) {
+      endGame(false);
+      return;
+    }
     if (!hand.some(piece => piece && anyFit(piece))) {
+      if (gameMode === 'zen') {
+        // A calm, endless mode: create breathing room without changing a record.
+        board = Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
+        hand = makeHand();
+        lastPlaced = null;
+        powerMode = null;
+        energy = 0;
+        combo = 0;
+        renderBoard();
+        renderHand();
+        updatePower();
+        showToast('ZEN · TABULEIRO RENOVADO 🌿');
+        return;
+      }
       if (energy >= POWER_MAX && (board.some(row => row.some(Boolean)) || canMoveLast())) {
         showToast('Use um poder para continuar!');
         return;
       }
-      busy = true;
-      gameOver = true;
-      updatePower();
-      const epoch = gameEpoch;
-      setTimeout(() => { if (epoch === gameEpoch) showGameOver(); }, 420);
+      endGame(false);
     }
+  }
+
+  function celebrateCombo(currentCombo,total) {
+    const text = document.createElement('strong');
+    text.className = 'combo-burst';
+    text.textContent = currentCombo > 1 ? `COMBO ×${currentCombo} ✦` : `${total} LINHAS! ✦`;
+    comboEffectsEl.appendChild(text);
+    for (let i = 0; i < 10; i++) {
+      const spark = document.createElement('i');
+      spark.className = 'combo-spark';
+      spark.style.setProperty('--angle', `${i*36}deg`);
+      spark.style.setProperty('--distance',`${80+(i%3)*20}px`);
+      comboEffectsEl.appendChild(spark);
+    }
+    setTimeout(() => comboEffectsEl.replaceChildren(),800);
+  }
+
+  function endGame(won) {
+    if (gameOver) return;
+    gameOver = true;
+    busy = true;
+    if (gameMode === 'classic' && score > 0) {
+      journey.rankings.push({ score, date:new Date().toLocaleDateString('pt-BR') });
+      journey.rankings.sort((a,b) => b.score-a.score);
+      journey.rankings = journey.rankings.slice(0,5);
+    }
+    if (gameMode === 'daily' && won && !journey.dailyChallenge.won) {
+      journey.dailyChallenge.won = true;
+      journey.stars += 5;
+      earnAchievement('dailyWinner');
+    }
+    saveJourney();
+    updatePower();
+    updateModeUI();
+    const epoch = gameEpoch;
+    setTimeout(() => { if (epoch === gameEpoch) showGameOver(won); }, 420);
   }
 
   function setPowerMode(mode) {
@@ -494,6 +714,8 @@
     const target = boardEl.children[r * SIZE + c];
     powerMode = null;
     energy = 0;
+    updateMission('powers',1);
+    earnAchievement('firstPower');
     updatePower();
     target.classList.add('power-breaking');
     playSound('power');
@@ -522,6 +744,8 @@
     lastPlaced.cells = nextCells;
     powerMode = null;
     energy = 0;
+    updateMission('powers',1);
+    earnAchievement('firstPower');
     hoverCell = null;
     renderBoard(nextCells);
     playSound('power');
@@ -529,10 +753,18 @@
     resolveLines();
   }
 
-  function showGameOver() {
+  function showGameOver(won = false) {
     $('finalScore').textContent = score.toLocaleString('pt-BR');
     const isNewBest = score > startBest;
-    $('bestMessage').textContent = isNewBest ? '★ Novo recorde! Você arrasou!' : 'Seu recorde está esperando por você!';
+    if (gameMode === 'daily') {
+      $('overTitle').textContent = won ? 'Desafio vencido!' : 'Desafio encerrado';
+      $('overDescription').textContent = won ? 'Meta alcançada! Volte amanhã para uma nova sequência.' : 'Tente de novo: você tem 20 peças para atingir a meta.';
+      $('bestMessage').textContent = won ? '★ Primeira vitória do dia rende 5 estrelas.' : `${DAILY_TARGET.toLocaleString('pt-BR')} pontos é a meta diária.`;
+    } else {
+      $('overTitle').textContent = 'Boa jogada!';
+      $('overDescription').textContent = 'Cada bloco conta. Que tal tentar de novo?';
+      $('bestMessage').textContent = isNewBest ? '★ Novo recorde! Você arrasou!' : 'Seu recorde está esperando por você!';
+    }
     $('gameOverModal').hidden = false;
     $('againBtn').focus({ preventScroll: true });
     playSound('finish');
@@ -545,6 +777,8 @@
     combo = 0;
     linesCleared = 0;
     multiplier = 1;
+    dailyMoves = 0;
+    dailyRandom = gameMode === 'daily' ? createDailyRandom() : null;
     energy = 0;
     powerMode = null;
     lastPlaced = null;
@@ -559,11 +793,14 @@
     ghostEl.classList.remove('visible');
     $('gameOverModal').hidden = true;
     toastEl.classList.remove('show');
+    comboEffectsEl.replaceChildren();
     renderBoard();
     renderHand();
     updateScore();
     updateMultiplier();
     updatePower();
+    refreshDay();
+    updateModeUI();
   }
 
   function cellUnderPointer(x, y) {
@@ -692,6 +929,39 @@
   $('startBtn').addEventListener('click', hideHelp);
   $('helpModal').addEventListener('click', e => { if (e.target.id === 'helpModal') hideHelp(); });
   $('againBtn').addEventListener('click', newGame);
+  function switchMode(next) {
+    if (next === gameMode) return;
+    if (!gameOver && score > 0 && !window.confirm('Mudar de modo vai reiniciar esta partida. Continuar?')) return;
+    gameMode = next;
+    newGame();
+    showToast(next === 'daily' ? '☀ DESAFIO DO DIA' : next === 'zen' ? '🌿 MODO ZEN' : '✦ MODO CLÁSSICO');
+  }
+  $('classicBtn').addEventListener('click', () => switchMode('classic'));
+  $('dailyBtn').addEventListener('click', () => switchMode('daily'));
+  $('zenBtn').addEventListener('click', () => switchMode('zen'));
+  function showJourney() {
+    renderJourney();
+    journeyEl.hidden = false;
+    $('journeyCloseBtn').focus({ preventScroll:true });
+  }
+  function hideJourney() { journeyEl.hidden = true; }
+  $('journeyBtn').addEventListener('click', showJourney);
+  $('journeyCloseBtn').addEventListener('click', hideJourney);
+  journeyEl.addEventListener('click', e => { if (e.target === journeyEl) hideJourney(); });
+  $('themeList').addEventListener('click', e => {
+    const button = e.target.closest('[data-theme-id]');
+    if (!button || button.disabled) return;
+    const theme = THEMES.find(t => t.id === button.dataset.themeId);
+    if (!theme) return;
+    if (!journey.owned.includes(theme.id)) {
+      if (journey.stars < theme.cost) return;
+      journey.stars -= theme.cost;
+      journey.owned.push(theme.id);
+    }
+    journey.theme = theme.id;
+    applyTheme();
+    renderJourney();
+  });
   $('restartBtn').addEventListener('click', () => {
     if (!gameOver && score > 0 && !window.confirm('Quer recomeçar? Sua pontuação atual será perdida.')) return;
     newGame();
@@ -704,7 +974,8 @@
   });
   window.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
-    if (!$('helpModal').hidden) hideHelp();
+    if (!journeyEl.hidden) hideJourney();
+    else if (!$('helpModal').hidden) hideHelp();
     else if (powerMode) setPowerMode(powerMode);
   });
   window.addEventListener('resize', () => { if (hand && !drag) renderHand(); });
@@ -716,5 +987,7 @@
     $('soundBtn').title = soundEnabled ? 'Desativar sons' : 'Ativar sons';
   }
   updateSoundButton();
+  applyTheme();
+  saveJourney();
   newGame();
 })();

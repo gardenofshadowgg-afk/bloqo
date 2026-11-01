@@ -43,7 +43,7 @@
         </div>
       </header>
 
-      <section class="game-wrap" aria-label="Jogo de encaixar blocos">
+      <section id="gameWrap" class="game-wrap" aria-label="Jogo de encaixar blocos" data-theme="classic">
         <div class="scorebar">
           <div class="score-card score-current">
             <div class="score-label"><span class="tiny-diamond blue"></span> PONTUAÇÃO</div>
@@ -73,8 +73,17 @@
             </div>
             <p id="powerHint" class="power-hint" aria-live="polite">Complete linhas e faça combos para carregar.</p>
           </div>
-          <div class="board-topline"><span><i class="live-dot"></i> MODO CLÁSSICO</span><span id="comboCounter" class="combo-badge" hidden>COMBO ×2</span></div>
+          <div class="board-topline">
+            <div class="mode-tabs" role="group" aria-label="Escolher modo de jogo">
+              <button id="classicBtn" class="mode-tab active" type="button" aria-pressed="true">Clássico</button>
+              <button id="dailyBtn" class="mode-tab" type="button" aria-pressed="false">Desafio</button>
+              <button id="zenBtn" class="mode-tab" type="button" aria-pressed="false">Zen</button>
+            </div>
+            <span id="comboCounter" class="combo-badge" hidden>COMBO ×2</span>
+          </div>
+          <p id="dailyStatus" class="daily-status" hidden></p>
           <div id="board" class="board" role="grid" aria-label="Tabuleiro de 8 linhas por 8 colunas"></div>
+          <div id="comboEffects" class="combo-effects" aria-hidden="true"></div>
           <div id="boardToast" class="board-toast" role="status" aria-live="polite"></div>
         </div>
 
@@ -84,7 +93,7 @@
         </div>
 
         <div class="bottom-actions">
-          <span class="game-tip"><span class="sparkle">✦</span> Complete linhas e colunas para pontuar!</span>
+          <button id="journeyBtn" class="journey-open" type="button">✦ Jornada <span id="starsBadge">0 ★</span></button>
           <button id="tipsBtn" type="button" class="text-link">Como jogar <span aria-hidden="true">↗</span></button>
         </div>
       </section>
@@ -106,6 +115,8 @@
           <li><span class="rule-index">04</span> A partida termina quando nenhuma peça disponível couber.</li>
           <li><span class="rule-index">05</span> Carregue o BLOQO POWER para remover um bloco ou mover a última peça colocada.</li>
           <li><span class="rule-index">06</span> Complete linhas para aumentar seu multiplicador de pontos até ×5 nesta partida. Ele não altera a energia do BLOQO POWER.</li>
+          <li><span class="rule-index">07</span> No Desafio Diário, alcance a meta em até 20 peças. No Zen, jogue sem perder.</li>
+          <li><span class="rule-index">08</span> Abra Jornada para ver missões, estrelas, temas e colecionáveis desbloqueados por pontos.</li>
         </ol>
         <button id="startBtn" class="primary-button" type="button">Bora jogar <span aria-hidden="true">→</span></button>
       </section>
@@ -116,9 +127,30 @@
         <div class="modal-emblem trophy" aria-hidden="true">★</div>
         <div class="modal-eyebrow">FIM DE PARTIDA</div>
         <h2 id="overTitle">Boa jogada!</h2>
-        <p class="modal-subtext">Cada bloco conta. Que tal tentar de novo?</p>
+        <p id="overDescription" class="modal-subtext">Cada bloco conta. Que tal tentar de novo?</p>
         <div class="final-score"><span>SUA PONTUAÇÃO</span><strong id="finalScore">0</strong><small id="bestMessage">Continue quebrando recordes!</small></div>
         <button id="againBtn" class="primary-button" type="button">Jogar novamente <span aria-hidden="true">→</span></button>
+      </section>
+    </div>
+
+    <div id="journeyModal" class="modal-backdrop" hidden>
+      <section class="modal-card journey-card" role="dialog" aria-modal="true" aria-labelledby="journeyTitle">
+        <button id="journeyCloseBtn" class="journey-close" type="button" aria-label="Fechar Jornada">✕</button>
+        <div class="modal-eyebrow">PROGRESSO NO SEU CELULAR</div>
+        <h2 id="journeyTitle">✦ Jornada BLOQO</h2>
+        <p class="journey-intro">Complete missões para ganhar estrelas, desbloqueie temas e descubra itens raros ao bater metas de pontuação.</p>
+        <div class="stars-wallet">★ <strong id="starsTotal">0</strong> estrelas disponíveis</div>
+        <h3>☀ Missões de hoje</h3>
+        <div id="missionList" class="journey-list"></div>
+        <h3>◈ Coleção de recordes</h3>
+        <div id="collectionGrid" class="collection-grid"></div>
+        <h3>🎨 Temas para desbloquear</h3>
+        <div id="themeList" class="journey-list"></div>
+        <h3>🏅 Conquistas</h3>
+        <div id="achievementList" class="journey-list"></div>
+        <h3>★ Seus 5 melhores jogos</h3>
+        <p class="journey-note">Ranking salvo apenas neste aparelho, no modo Clássico.</p>
+        <div id="rankingList" class="journey-list"></div>
       </section>
     </div>
   </body>
