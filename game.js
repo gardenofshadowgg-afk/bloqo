@@ -2,6 +2,7 @@
   'use strict';
 
   const SIZE = 8;
+  const POWER_MAX = 100;
   const COLORS = ['#5f9eff', '#ffbd57', '#ff647e', '#55d3a0', '#ae86fc', '#5ccee9'];
   const SHAPES = [
     [[0,0],[0,1]],
@@ -47,8 +48,19 @@
   const toastEl = $('boardToast');
   const ghostEl = $('dragGhost');
   const hintEl = $('trayHint');
+  const powerPanelEl = $('powerPanel');
+  const powerFillEl = $('powerFill');
+  const powerPercentEl = $('powerPercent');
+  const powerMeterEl = powerPanelEl.querySelector('.power-meter');
+  const powerHintEl = $('powerHint');
+  const removePowerBtn = $('removePowerBtn');
+  const movePowerBtn = $('movePowerBtn');
 
   let board, hand, score, combo, best, startBest;
+  let energy = 0;
+  let powerMode = null;
+  let lastPlaced = null;
+  let gameEpoch = 0;
   let selectedSlot = -1;
   let hoverCell = null;
   let busy = false;
@@ -77,7 +89,9 @@
     clear:   [[523, 0, .13, .024], [659, .075, .13, .022], [784, .15, .17, .021]],
     combo:   [[523, 0, .12, .022], [659, .060, .12, .022], [784, .120, .14, .023], [1047, .19, .19, .020]],
     finish:  [[392, 0, .19, .014], [330, .12, .21, .012]],
-    enable:  [[660, 0, .075, .013], [880, .055, .10, .014]]
+    enable:  [[660, 0, .075, .013], [880, .055, .10, .014]],
+    ready:   [[659, 0, .11, .020], [880, .09, .14, .021], [1175, .17, .19, .015]],
+    power:   [[750, 0, .085, .024], [390, .06, .15, .025]]
   };
 
   function playSound(effect) {
@@ -156,9 +170,55 @@
     comboEl.textContent = `COMBO ×${combo}`;
   }
 
+  function canMoveLast() {
+    return !!lastPlaced && lastPlaced.cells.every(([r, c]) => board[r][c] === lastPlaced.piece.color);
+  }
+
+  function updatePower() {
+    const ready = energy >= POWER_MAX;
+    powerFillEl.style.width = `${energy}%`;
+    powerPercentEl.textContent = ready ? 'PRONTO!' : `${energy}%`;
+    powerMeterEl.setAttribute('aria-valuenow', String(energy));
+    powerPanelEl.classList.toggle('is-ready', ready);
+    powerPanelEl.classList.toggle('is-charging', !ready && energy > 0);
+    removePowerBtn.disabled = busy || gameOver || !ready || !board.some(row => row.some(Boolean));
+    movePowerBtn.disabled = busy || gameOver || !ready || !canMoveLast();
+    removePowerBtn.classList.toggle('active', powerMode === 'remove');
+    movePowerBtn.classList.toggle('active', powerMode === 'move');
+    boardEl.classList.toggle('power-remove', powerMode === 'remove');
+    boardEl.classList.toggle('power-move', powerMode === 'move');
+    if (powerMode === 'remove') powerHintEl.textContent = 'Toque em um quadradinho ocupado para destruí-lo.';
+    else if (powerMode === 'move') powerHintEl.textContent = 'Toque em uma nova posição para mover a última peça.';
+    else if (ready && !canMoveLast()) powerHintEl.textContent = 'Energia cheia! Use Remover bloco para abrir espaço.';
+    else if (ready) powerHintEl.textContent = 'Escolha um poder! Você pode carregá-lo novamente.';
+    else powerHintEl.textContent = 'Complete linhas e faça combos para carregar.';
+  }
+
+  function addEnergy(amount) {
+    const previous = energy;
+    energy = Math.min(POWER_MAX, energy + amount);
+    const earned = energy - previous;
+    if (earned > 0) {
+      const feedback = document.createElement('span');
+      feedback.className = 'power-earned';
+      feedback.textContent = `+${earned} ⚡`;
+      feedback.setAttribute('aria-hidden', 'true');
+      powerPanelEl.appendChild(feedback);
+      setTimeout(() => feedback.remove(), 700);
+    }
+    if (previous < POWER_MAX && energy === POWER_MAX) {
+      playSound('ready');
+      powerPanelEl.classList.remove('just-charged');
+      void powerPanelEl.offsetWidth;
+      powerPanelEl.classList.add('just-charged');
+    }
+    updatePower();
+  }
+
   function renderBoard(placed = []) {
     const fresh = document.createDocumentFragment();
     const justPlaced = new Set(placed.map(([r,c]) => `${r},${c}`));
+    const sourceCells = powerMode === 'move' && lastPlaced ? new Set(lastPlaced.cells.map(([r,c]) => `${r},${c}`)) : null;
     for (let r = 0; r < SIZE; r++) {
       for (let c = 0; c < SIZE; c++) {
         const cell = document.createElement('button');
@@ -173,11 +233,13 @@
           cell.style.setProperty('--tile-color', board[r][c]);
         }
         if (justPlaced.has(`${r},${c}`)) cell.classList.add('just-placed');
+        if (sourceCells?.has(`${r},${c}`)) cell.classList.add('move-source');
         fresh.appendChild(cell);
       }
     }
     boardEl.replaceChildren(fresh);
-    if (hoverCell && selectedSlot >= 0) showPreview(hoverCell.r, hoverCell.c);
+    if (hoverCell && powerMode === 'move') showMovePreview(hoverCell.r, hoverCell.c);
+    else if (hoverCell && selectedSlot >= 0) showPreview(hoverCell.r, hoverCell.c);
   }
 
   function renderHand() {
@@ -193,6 +255,7 @@
         slot.classList.add('used');
         slot.disabled = true;
       } else {
+        slot.disabled = !!powerMode;
         const { cols, rows } = shapeBounds(piece);
         const tile = Math.max(12, Math.min(24, Math.floor((slotWidth - 20 - (cols - 1) * 2) / cols), Math.floor((85 - (rows - 1) * 2) / rows)));
         slot.appendChild(makeShape(piece, tile));
@@ -203,11 +266,11 @@
       }
       trayEl.appendChild(slot);
     });
-    hintEl.textContent = selectedSlot < 0 ? 'Toque numa peça e depois no tabuleiro' : 'Agora toque onde deseja encaixar';
+    hintEl.textContent = powerMode ? 'Use o poder no tabuleiro' : selectedSlot < 0 ? 'Toque numa peça e depois no tabuleiro' : 'Agora toque onde deseja encaixar';
   }
 
   function selectPiece(index) {
-    if (busy || gameOver || !hand[index]) return;
+    if (busy || gameOver || powerMode || !hand[index]) return;
     selectedSlot = index;
     hoverCell = null;
     clearPreview();
@@ -236,6 +299,26 @@
     boardEl.querySelectorAll('.preview-valid,.preview-invalid').forEach(cell => {
       cell.classList.remove('preview-valid','preview-invalid');
       cell.style.removeProperty('--preview-color');
+    });
+  }
+
+  function validMove(r, c) {
+    if (!canMoveLast() || (r === lastPlaced.r && c === lastPlaced.c)) return false;
+    const source = new Set(lastPlaced.cells.map(([rr,cc]) => `${rr},${cc}`));
+    return getCells(lastPlaced.piece, r, c).every(([rr,cc]) =>
+      rr >= 0 && cc >= 0 && rr < SIZE && cc < SIZE && (!board[rr][cc] || source.has(`${rr},${cc}`))
+    );
+  }
+
+  function showMovePreview(r, c) {
+    clearPreview();
+    if (powerMode !== 'move' || busy || gameOver || !canMoveLast()) return;
+    const valid = validMove(r, c);
+    getCells(lastPlaced.piece, r, c).forEach(([rr,cc]) => {
+      if (rr < 0 || cc < 0 || rr >= SIZE || cc >= SIZE) return;
+      const cell = boardEl.children[rr * SIZE + cc];
+      cell.classList.add(valid ? 'preview-valid' : 'preview-invalid');
+      if (valid) cell.style.setProperty('--preview-color', lastPlaced.piece.color);
     });
   }
 
@@ -269,14 +352,20 @@
     }
     const cells = getCells(piece, r, c);
     cells.forEach(([rr,cc]) => { board[rr][cc] = piece.color; });
+    lastPlaced = { piece: { cells: piece.cells.map(cell => [...cell]), color: piece.color }, r, c, cells };
     score += cells.length * 10;
+    addEnergy(10);
     hand[index] = null;
     selectedSlot = -1;
     hoverCell = null;
     clearPreview();
     renderBoard(cells);
     renderHand();
+    resolveLines();
+    return true;
+  }
 
+  function resolveLines() {
     const rows = [];
     const cols = [];
     for (let i = 0; i < SIZE; i++) {
@@ -285,9 +374,11 @@
     }
     if (rows.length || cols.length) {
       busy = true;
+      const epoch = gameEpoch;
       combo++;
       const total = rows.length + cols.length;
       score += total * 120 + (combo > 1 ? (combo - 1) * 80 : 0);
+      addEnergy(total * 25 + (combo > 1 ? 40 : 0));
       updateScore();
       const marked = new Set();
       for (const row of rows) for (let col = 0; col < SIZE; col++) marked.add(`${row},${col}`);
@@ -296,14 +387,20 @@
         const [rr,cc] = key.split(',').map(Number);
         boardEl.children[rr*SIZE+cc]?.classList.add('clearing');
       });
+      boardEl.classList.remove('line-celebration');
+      void boardEl.offsetWidth;
+      boardEl.classList.add('line-celebration');
       showToast(combo > 1 ? `COMBO ×${combo}! +${total * 120 + (combo - 1) * 80}` : total > 1 ? `INCRÍVEL! ${total} LINHAS` : 'LINHA COMPLETA!');
       playSound(combo > 1 ? 'combo' : 'clear');
       setTimeout(() => {
+        if (epoch !== gameEpoch) return;
         marked.forEach(key => {
           const [rr,cc] = key.split(',').map(Number);
           board[rr][cc] = null;
         });
+        if (lastPlaced?.cells.some(([r,c]) => marked.has(`${r},${c}`))) lastPlaced = null;
         busy = false;
+        boardEl.classList.remove('line-celebration');
         finishTurn();
       }, 275);
     } else {
@@ -312,7 +409,6 @@
       updateScore();
       finishTurn();
     }
-    return true;
   }
 
   function finishTurn() {
@@ -320,11 +416,71 @@
     renderBoard();
     renderHand();
     updateScore();
+    updatePower();
     if (!hand.some(piece => piece && anyFit(piece))) {
+      if (energy >= POWER_MAX && (board.some(row => row.some(Boolean)) || canMoveLast())) {
+        showToast('Use um poder para continuar!');
+        return;
+      }
       busy = true;
       gameOver = true;
-      setTimeout(showGameOver, 420);
+      updatePower();
+      const epoch = gameEpoch;
+      setTimeout(() => { if (epoch === gameEpoch) showGameOver(); }, 420);
     }
+  }
+
+  function setPowerMode(mode) {
+    if (busy || gameOver || energy < POWER_MAX || (mode === 'move' && !canMoveLast())) return;
+    powerMode = powerMode === mode ? null : mode;
+    selectedSlot = -1;
+    hoverCell = null;
+    clearPreview();
+    renderBoard();
+    renderHand();
+    updatePower();
+  }
+
+  function removeBlock(r, c) {
+    if (energy < POWER_MAX || !board[r][c] || busy || gameOver) return;
+    busy = true;
+    const epoch = gameEpoch;
+    const target = boardEl.children[r * SIZE + c];
+    powerMode = null;
+    energy = 0;
+    updatePower();
+    target.classList.add('power-breaking');
+    playSound('power');
+    showToast('BLOCO REMOVIDO!');
+    setTimeout(() => {
+      if (epoch !== gameEpoch) return;
+      board[r][c] = null;
+      if (lastPlaced?.cells.some(([rr,cc]) => rr === r && cc === c)) lastPlaced = null;
+      busy = false;
+      finishTurn();
+    }, 260);
+  }
+
+  function moveLastPiece(r, c) {
+    if (energy < POWER_MAX || busy || gameOver) return;
+    if (!validMove(r, c)) {
+      showToast('Escolha outra posição');
+      playSound('invalid');
+      return;
+    }
+    lastPlaced.cells.forEach(([rr,cc]) => { board[rr][cc] = null; });
+    const nextCells = getCells(lastPlaced.piece, r, c);
+    nextCells.forEach(([rr,cc]) => { board[rr][cc] = lastPlaced.piece.color; });
+    lastPlaced.r = r;
+    lastPlaced.c = c;
+    lastPlaced.cells = nextCells;
+    powerMode = null;
+    energy = 0;
+    hoverCell = null;
+    renderBoard(nextCells);
+    playSound('power');
+    showToast('PEÇA MOVIDA!');
+    resolveLines();
   }
 
   function showGameOver() {
@@ -337,9 +493,13 @@
   }
 
   function newGame() {
+    gameEpoch++;
     board = Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
     score = 0;
     combo = 0;
+    energy = 0;
+    powerMode = null;
+    lastPlaced = null;
     best = getSavedBest();
     startBest = best;
     hand = makeHand();
@@ -354,6 +514,7 @@
     renderBoard();
     renderHand();
     updateScore();
+    updatePower();
   }
 
   function cellUnderPointer(x, y) {
@@ -443,11 +604,12 @@
   }
 
   boardEl.addEventListener('pointermove', e => {
-    if (drag || selectedSlot < 0) return;
+    if (drag || (selectedSlot < 0 && powerMode !== 'move')) return;
     const cell = cellUnderPointer(e.clientX, e.clientY);
     if (cell) {
       hoverCell = cell;
-      showPreview(cell.r, cell.c);
+      if (powerMode === 'move') showMovePreview(cell.r, cell.c);
+      else showPreview(cell.r, cell.c);
     }
   });
   boardEl.addEventListener('pointerleave', () => {
@@ -455,9 +617,15 @@
   });
   boardEl.addEventListener('click', e => {
     const cell = e.target.closest('.cell');
-    if (!cell || selectedSlot < 0) return;
-    placePiece(selectedSlot, Number(cell.dataset.row), Number(cell.dataset.col));
+    if (!cell) return;
+    const r = Number(cell.dataset.row);
+    const c = Number(cell.dataset.col);
+    if (powerMode === 'remove') removeBlock(r, c);
+    else if (powerMode === 'move') moveLastPiece(r, c);
+    else if (selectedSlot >= 0) placePiece(selectedSlot, r, c);
   });
+  removePowerBtn.addEventListener('click', () => setPowerMode('remove'));
+  movePowerBtn.addEventListener('click', () => setPowerMode('move'));
   window.addEventListener('pointermove', handlePointerMove, { passive: false });
   window.addEventListener('pointerup', handlePointerUp);
   window.addEventListener('pointercancel', e => {
@@ -485,7 +653,11 @@
     updateSoundButton();
     playSound('enable');
   });
-  window.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('helpModal').hidden) hideHelp(); });
+  window.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (!$('helpModal').hidden) hideHelp();
+    else if (powerMode) setPowerMode(powerMode);
+  });
   window.addEventListener('resize', () => { if (hand && !drag) renderHand(); });
 
   function updateSoundButton() {
