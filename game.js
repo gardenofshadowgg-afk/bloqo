@@ -107,6 +107,10 @@
   let powerMode = null;
   let lastPlaced = null;
   let gameEpoch = 0;
+  let continuedThisGame = false;
+  let rewardAdReady = false;
+  let rewardAdPending = false;
+  let rankingsBeforeEnd = null;
   let selectedSlot = -1;
   let hoverCell = null;
   let busy = false;
@@ -442,203 +446,7 @@
           cell.style.setProperty('--tile-color', board[r][c]);
         }
         if (justPlaced.has(`${r},${c}`)) cell.classList.add('just-placed');
-        if (sourceCells?.has(`${r},${c}`)) cell.classList.add('move-source');
-        fresh.appendChild(cell);
-      }
-    }
-    boardEl.replaceChildren(fresh);
-    if (hoverCell && powerMode === 'move') showMovePreview(hoverCell.r, hoverCell.c);
-    else if (hoverCell && selectedSlot >= 0) showPreview(hoverCell.r, hoverCell.c);
-  }
-
-  function renderHand() {
-    trayEl.replaceChildren();
-    const slotWidth = (trayEl.clientWidth - 20) / 3;
-    hand.forEach((piece, i) => {
-      const slot = document.createElement('button');
-      slot.type = 'button';
-      slot.className = 'piece-slot';
-      slot.dataset.slot = i;
-      slot.setAttribute('aria-label', piece ? `Peça ${i + 1}: ${piece.cells.length} blocos` : `Peça ${i + 1} já usada`);
-      if (!piece) {
-        slot.classList.add('used');
-        slot.disabled = true;
-      } else {
-        slot.disabled = !!powerMode;
-        const { cols, rows } = shapeBounds(piece);
-        const tile = Math.max(12, Math.min(24, Math.floor((slotWidth - 20 - (cols - 1) * 2) / cols), Math.floor((85 - (rows - 1) * 2) / rows)));
-        slot.appendChild(makeShape(piece, tile));
-        if (i === selectedSlot) slot.classList.add('selected');
-        slot.setAttribute('aria-pressed', String(i === selectedSlot));
-        slot.addEventListener('pointerdown', e => startDrag(e, i));
-        slot.addEventListener('click', e => { if (e.detail === 0) selectPiece(i); });
-      }
-      trayEl.appendChild(slot);
-    });
-    hintEl.textContent = powerMode ? 'Use o poder no tabuleiro' : selectedSlot < 0 ? 'Toque numa peça e depois no tabuleiro' : 'Agora toque onde deseja encaixar';
-  }
-
-  function selectPiece(index) {
-    if (busy || gameOver || powerMode || !hand[index]) return;
-    selectedSlot = index;
-    hoverCell = null;
-    clearPreview();
-    renderHand();
-    playSound('pick');
-  }
-
-  function getCells(piece, r, c) {
-    return piece.cells.map(([dr, dc]) => [r+dr, c+dc]);
-  }
-
-  function fits(piece, r, c) {
-    return getCells(piece, r, c).every(([rr,cc]) => rr >= 0 && cc >= 0 && rr < SIZE && cc < SIZE && !board[rr][cc]);
-  }
-
-  function anyFit(piece) {
-    for (let r = 0; r < SIZE; r++) {
-      for (let c = 0; c < SIZE; c++) {
-        if (fits(piece, r, c)) return true;
-      }
-    }
-    return false;
-  }
-
-  function clearPreview() {
-    boardEl.querySelectorAll('.preview-valid,.preview-invalid').forEach(cell => {
-      cell.classList.remove('preview-valid','preview-invalid');
-      cell.style.removeProperty('--preview-color');
-    });
-  }
-
-  function validMove(r, c) {
-    if (!canMoveLast() || (r === lastPlaced.r && c === lastPlaced.c)) return false;
-    const source = new Set(lastPlaced.cells.map(([rr,cc]) => `${rr},${cc}`));
-    return getCells(lastPlaced.piece, r, c).every(([rr,cc]) =>
-      rr >= 0 && cc >= 0 && rr < SIZE && cc < SIZE && (!board[rr][cc] || source.has(`${rr},${cc}`))
-    );
-  }
-
-  function showMovePreview(r, c) {
-    clearPreview();
-    if (powerMode !== 'move' || busy || gameOver || !canMoveLast()) return;
-    const valid = validMove(r, c);
-    getCells(lastPlaced.piece, r, c).forEach(([rr,cc]) => {
-      if (rr < 0 || cc < 0 || rr >= SIZE || cc >= SIZE) return;
-      const cell = boardEl.children[rr * SIZE + cc];
-      cell.classList.add(valid ? 'preview-valid' : 'preview-invalid');
-      if (valid) cell.style.setProperty('--preview-color', lastPlaced.piece.color);
-    });
-  }
-
-  function showPreview(r, c, index = selectedSlot) {
-    clearPreview();
-    if (index < 0 || !hand[index] || busy || gameOver) return;
-    const piece = hand[index];
-    const valid = fits(piece, r, c);
-    getCells(piece, r, c).forEach(([rr,cc]) => {
-      if (rr < 0 || cc < 0 || rr >= SIZE || cc >= SIZE) return;
-      const cell = boardEl.children[rr * SIZE + cc];
-      cell.classList.add(valid ? 'preview-valid' : 'preview-invalid');
-      if (valid) cell.style.setProperty('--preview-color', piece.color);
-    });
-  }
-
-  function showToast(message) {
-    clearTimeout(toastTimeout);
-    toastEl.textContent = message;
-    toastEl.classList.add('show');
-    toastTimeout = setTimeout(() => toastEl.classList.remove('show'), 950);
-  }
-
-  function placePiece(index, r, c) {
-    if (busy || gameOver || !hand[index]) return false;
-    const piece = hand[index];
-    if (!fits(piece, r, c)) {
-      showToast('Essa peça não cabe aqui');
-      playSound('invalid');
-      return false;
-    }
-    const cells = getCells(piece, r, c);
-    cells.forEach(([rr,cc]) => { board[rr][cc] = piece.color; });
-    lastPlaced = { piece: { cells: piece.cells.map(cell => [...cell]), color: piece.color }, r, c, cells };
-    addPoints(cells.length * 10 * multiplier);
-    addEnergy(10);
-    if (gameMode === 'daily') dailyMoves++;
-    hand[index] = null;
-    selectedSlot = -1;
-    hoverCell = null;
-    clearPreview();
-    renderBoard(cells);
-    renderHand();
-    resolveLines();
-    return true;
-  }
-
-  function resolveLines() {
-    const rows = [];
-    const cols = [];
-    for (let i = 0; i < SIZE; i++) {
-      if (board[i].every(Boolean)) rows.push(i);
-      if (board.every(row => !!row[i])) cols.push(i);
-    }
-    if (rows.length || cols.length) {
-      busy = true;
-      const epoch = gameEpoch;
-      combo++;
-      const total = rows.length + cols.length;
-      const upgraded = advanceMultiplier(total);
-      const linePoints = (total * 120 + (combo > 1 ? (combo - 1) * 80 : 0)) * multiplier;
-      addPoints(linePoints);
-      updateMission('lines',total);
-      earnAchievement('firstLine');
-      addEnergy(total * 25 + (combo > 1 ? 40 : 0));
-      updateScore();
-      const marked = new Set();
-      for (const row of rows) for (let col = 0; col < SIZE; col++) marked.add(`${row},${col}`);
-      for (const col of cols) for (let row = 0; row < SIZE; row++) marked.add(`${row},${col}`);
-      marked.forEach(key => {
-        const [rr,cc] = key.split(',').map(Number);
-        boardEl.children[rr*SIZE+cc]?.classList.add('clearing');
-      });
-      boardEl.classList.remove('line-celebration');
-      void boardEl.offsetWidth;
-      boardEl.classList.add('line-celebration');
-      if (combo >= 2 || total > 1) celebrateCombo(combo,total);
-      showToast(upgraded ? `MULTIPLICADOR ×${multiplier}! ✦` : combo > 1 ? `COMBO ×${combo}! +${linePoints}` : total > 1 ? `INCRÍVEL! ${total} LINHAS` : 'LINHA COMPLETA!');
-      if (!upgraded) playSound(combo > 1 ? 'combo' : 'clear');
-      setTimeout(() => {
-        if (epoch !== gameEpoch) return;
-        marked.forEach(key => {
-          const [rr,cc] = key.split(',').map(Number);
-          board[rr][cc] = null;
-        });
-        if (lastPlaced?.cells.some(([r,c]) => marked.has(`${r},${c}`))) lastPlaced = null;
-        busy = false;
-        boardEl.classList.remove('line-celebration');
-        finishTurn();
-      }, 275);
-    } else {
-      combo = 0;
-      playSound('place');
-      updateScore();
-      finishTurn();
-    }
-  }
-
-  function finishTurn() {
-    if (gameOver) return;
-    if (hand.every(piece => piece === null)) hand = makeHand();
-    renderBoard();
-    renderHand();
-    updateScore();
-    updatePower();
-    updateModeUI();
-    if (gameMode === 'daily' && score >= DAILY_TARGET) {
-      endGame(true);
-      return;
-    }
-    if (gameMode === 'daily' && dailyMoves >= DAILY_LIMIT) {
+        if (sourceCells?.has(`${r},${c}`)) cell.classList.add('move-sourcMoves >= DAILY_LIMIT) {
       endGame(false);
       return;
     }
@@ -685,6 +493,8 @@
     gameOver = true;
     busy = true;
     if (gameMode === 'classic' && score > 0) {
+      // O ranking so se torna definitivo se o jogador nao usar a segunda chance.
+      rankingsBeforeEnd = journey.rankings.map(entry => ({ ...entry }));
       journey.rankings.push({ score, date:new Date().toLocaleDateString('pt-BR') });
       journey.rankings.sort((a,b) => b.score-a.score);
       journey.rankings = journey.rankings.slice(0,5);
@@ -784,12 +594,108 @@
       $('bestMessage').textContent = isNewBest ? '★ Novo recorde! Você arrasou!' : 'Seu recorde está esperando por você!';
     }
     $('gameOverModal').hidden = false;
+    updateRewardContinueUI();
     $('againBtn').focus({ preventScroll: true });
     playSound('finish');
   }
 
+  // Ponte de retorno do anuncio premiado. A recompensa e concedida apenas
+  // pelo callback nativo do SDK, nunca so por tocar no botao.
+  function updateRewardContinueUI() {
+    const button = $('rewardContinueBtn');
+    const hint = $('rewardContinueStatus');
+    if (!button || !hint) return;
+    const eligible = gameMode === 'classic' && score > 0 && gameOver && !continuedThisGame
+      && !!window.BloqoAndroid && typeof window.BloqoAndroid.showRewardedAd === 'function';
+    button.hidden = !eligible || (!rewardAdReady && !rewardAdPending);
+    button.disabled = !rewardAdReady || rewardAdPending;
+    button.textContent = rewardAdPending ? 'Carregando anuncio…' : '🎁 Assistir anúncio e continuar ▶';
+    hint.hidden = !eligible;
+    hint.textContent = rewardAdPending
+      ? 'Aguarde o anuncio terminar para receber a recompensa.'
+      : rewardAdReady ? 'Uma segunda chance por partida. Seu placar sera mantido.'
+      : 'Anuncio premiado indisponivel no momento. Voce pode jogar novamente.';
+  }
+
+  // A pagina pode ser acessada pelo navegador: a ponte nao existe nesse caso.
+  window.bloqoRewardAdReady = ready => {
+    rewardAdReady = !!ready;
+    updateRewardContinueUI();
+  };
+
+  function requestRewardContinue() {
+    if (gameMode !== 'classic' || !gameOver || continuedThisGame
+        || rewardAdPending || !rewardAdReady) return;
+    if (!window.BloqoAndroid || typeof window.BloqoAndroid.showRewardedAd !== 'function') return;
+    rewardAdPending = true;
+    updateRewardContinueUI();
+    try {
+      window.BloqoAndroid.showRewardedAd();
+    } catch (error) {
+      rewardAdPending = false;
+      rewardAdReady = false;
+      updateRewardContinueUI();
+      console.warn('Anuncio premiado nao disponivel', error);
+    }
+  }
+
+  window.bloqoRewardAdResult = earned => {
+    if (!rewardAdPending) return;
+    rewardAdPending = false;
+    rewardAdReady = false;
+    if (!earned || !gameOver || continuedThisGame || gameMode !== 'classic') {
+      updateRewardContinueUI();
+      return;
+    }
+    continuedThisGame = true;
+    // Descarta o ranking temporario do primeiro fim de partida.
+    if (rankingsBeforeEnd) {
+      journey.rankings = rankingsBeforeEnd;
+      rankingsBeforeEnd = null;
+      saveJourney();
+    }
+    // Libera a area 3 x 3 que tiver mais blocos, sempre gerando uma jogada possivel.
+    let targetRow = 0, targetCol = 0, largest = -1;
+    for (let r = 0; r <= SIZE - 3; r++) {
+      for (let c = 0; c <= SIZE - 3; c++) {
+        let filled = 0;
+        for (let dr = 0; dr < 3; dr++) {
+          for (let dc = 0; dc < 3; dc++) if (board[r + dr][c + dc]) filled++;
+        }
+        if (filled > largest) { largest = filled; targetRow = r; targetCol = c; }
+      }
+    }
+    for (let dr = 0; dr < 3; dr++) {
+      for (let dc = 0; dc < 3; dc++) board[targetRow + dr][targetCol + dc] = null;
+    }
+    // Tres pecas pequenas garantem ao jogador uma oportunidade real de continuar.
+    hand = [0, 1, 0].map(i => ({
+      cells: SHAPES[i].map(([r,c]) => [r,c]),
+      color: COLORS[Math.floor(Math.random() * COLORS.length)]
+    }));
+    lastPlaced = null;
+    combo = 0;
+    powerMode = null;
+    selectedSlot = -1;
+    hoverCell = null;
+    busy = false;
+    gameOver = false;
+    gameEpoch++;
+    $('gameOverModal').hidden = true;
+    renderBoard();
+    renderHand();
+    updateScore();
+    updateMultiplier();
+    updatePower();
+    updateModeUI();
+    showToast('SEGUNDA CHANCE! ✦');
+  };
+
   function newGame() {
     gameEpoch++;
+    continuedThisGame = false;
+    rewardAdPending = false;
+    rankingsBeforeEnd = null;
     board = Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
     score = 0;
     combo = 0;
@@ -947,6 +853,7 @@
   $('startBtn').addEventListener('click', hideHelp);
   $('helpModal').addEventListener('click', e => { if (e.target.id === 'helpModal') hideHelp(); });
   $('againBtn').addEventListener('click', newGame);
+  $('rewardContinueBtn').addEventListener('click', requestRewardContinue);
   function setScreen(next) {
     activeScreen = next === 'extras' ? 'extras' : 'play';
     const playing = activeScreen === 'play';
@@ -1003,4 +910,50 @@
   function hideJourney() { journeyEl.hidden = true; }
   $('journeyBtn').addEventListener('click', showJourney);
   $('journeyCloseBtn').addEventListener('click', hideJourney);
-  jour
+  journeyEl.addEventListener('click', e => { if (e.target === journeyEl) hideJourney(); });
+  $('themeList').addEventListener('click', e => {
+    const button = e.target.closest('[data-theme-id]');
+    if (!button || button.disabled) return;
+    const theme = THEMES.find(t => t.id === button.dataset.themeId);
+    if (!theme) return;
+    if (!journey.owned.includes(theme.id)) {
+      if (journey.stars < theme.cost) return;
+      journey.stars -= theme.cost;
+      journey.owned.push(theme.id);
+    }
+    journey.theme = theme.id;
+    applyTheme();
+    renderJourney();
+  });
+  $('restartBtn').addEventListener('click', () => {
+    if (!gameOver && score > 0 && !window.confirm('Quer recomeçar? Sua pontuação atual será perdida.')) return;
+    newGame();
+    setScreen('play');
+  });
+  $('soundBtn').addEventListener('click', () => {
+    soundEnabled = !soundEnabled;
+    try { localStorage.setItem('bloqo-sound', soundEnabled ? 'on' : 'off'); } catch { /* optional */ }
+    updateSoundButton();
+    playSound('enable');
+  });
+  window.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (!journeyEl.hidden) hideJourney();
+    else if (!$('helpModal').hidden) hideHelp();
+    else if (powerMode) setPowerMode(powerMode);
+  });
+  window.addEventListener('resize', () => { if (hand && !drag) renderHand(); });
+
+  function updateSoundButton() {
+    $('soundBtn').classList.toggle('is-muted', !soundEnabled);
+    $('soundBtn').setAttribute('aria-pressed', String(soundEnabled));
+    $('soundBtn').setAttribute('aria-label', soundEnabled ? 'Desativar som' : 'Ativar som');
+    $('soundBtn').title = soundEnabled ? 'Desativar sons' : 'Ativar sons';
+  }
+  updateSoundButton();
+  applyTheme();
+  saveJourney();
+  newGame();
+  setScreen('play');
+})();
+  
