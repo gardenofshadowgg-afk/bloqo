@@ -698,6 +698,19 @@
     updatePower();
     updateModeUI();
     const epoch = gameEpoch;
+
+    // Avisa o Android quando a partida classica termina.
+    // Sem o aplicativo Android, o jogo continua funcionando normalmente.
+    if (gameMode === 'classic') {
+      try {
+        if (window.BloqoAndroid && typeof window.BloqoAndroid.onGameOver === 'function') {
+          window.BloqoAndroid.onGameOver();
+        }
+      } catch (error) {
+        console.warn('Aviso de fim de partida indisponivel', error);
+      }
+    }
+
     setTimeout(() => { if (epoch === gameEpoch) showGameOver(won); }, 420);
   }
 
@@ -990,49 +1003,4 @@
   function hideJourney() { journeyEl.hidden = true; }
   $('journeyBtn').addEventListener('click', showJourney);
   $('journeyCloseBtn').addEventListener('click', hideJourney);
-  journeyEl.addEventListener('click', e => { if (e.target === journeyEl) hideJourney(); });
-  $('themeList').addEventListener('click', e => {
-    const button = e.target.closest('[data-theme-id]');
-    if (!button || button.disabled) return;
-    const theme = THEMES.find(t => t.id === button.dataset.themeId);
-    if (!theme) return;
-    if (!journey.owned.includes(theme.id)) {
-      if (journey.stars < theme.cost) return;
-      journey.stars -= theme.cost;
-      journey.owned.push(theme.id);
-    }
-    journey.theme = theme.id;
-    applyTheme();
-    renderJourney();
-  });
-  $('restartBtn').addEventListener('click', () => {
-    if (!gameOver && score > 0 && !window.confirm('Quer recomeçar? Sua pontuação atual será perdida.')) return;
-    newGame();
-    setScreen('play');
-  });
-  $('soundBtn').addEventListener('click', () => {
-    soundEnabled = !soundEnabled;
-    try { localStorage.setItem('bloqo-sound', soundEnabled ? 'on' : 'off'); } catch { /* optional */ }
-    updateSoundButton();
-    playSound('enable');
-  });
-  window.addEventListener('keydown', e => {
-    if (e.key !== 'Escape') return;
-    if (!journeyEl.hidden) hideJourney();
-    else if (!$('helpModal').hidden) hideHelp();
-    else if (powerMode) setPowerMode(powerMode);
-  });
-  window.addEventListener('resize', () => { if (hand && !drag) renderHand(); });
-
-  function updateSoundButton() {
-    $('soundBtn').classList.toggle('is-muted', !soundEnabled);
-    $('soundBtn').setAttribute('aria-pressed', String(soundEnabled));
-    $('soundBtn').setAttribute('aria-label', soundEnabled ? 'Desativar som' : 'Ativar som');
-    $('soundBtn').title = soundEnabled ? 'Desativar sons' : 'Ativar sons';
-  }
-  updateSoundButton();
-  applyTheme();
-  saveJourney();
-  newGame();
-  setScreen('play');
-})();
+  jour
