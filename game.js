@@ -446,7 +446,203 @@
           cell.style.setProperty('--tile-color', board[r][c]);
         }
         if (justPlaced.has(`${r},${c}`)) cell.classList.add('just-placed');
-        if (sourceCells?.has(`${r},${c}`)) cell.classList.add('move-sourcMoves >= DAILY_LIMIT) {
+        if (sourceCells?.has(`${r},${c}`)) cell.classList.add('move-source');
+        fresh.appendChild(cell);
+      }
+    }
+    boardEl.replaceChildren(fresh);
+    if (hoverCell && powerMode === 'move') showMovePreview(hoverCell.r, hoverCell.c);
+    else if (hoverCell && selectedSlot >= 0) showPreview(hoverCell.r, hoverCell.c);
+  }
+
+  function renderHand() {
+    trayEl.replaceChildren();
+    const slotWidth = (trayEl.clientWidth - 20) / 3;
+    hand.forEach((piece, i) => {
+      const slot = document.createElement('button');
+      slot.type = 'button';
+      slot.className = 'piece-slot';
+      slot.dataset.slot = i;
+      slot.setAttribute('aria-label', piece ? `Peça ${i + 1}: ${piece.cells.length} blocos` : `Peça ${i + 1} já usada`);
+      if (!piece) {
+        slot.classList.add('used');
+        slot.disabled = true;
+      } else {
+        slot.disabled = !!powerMode;
+        const { cols, rows } = shapeBounds(piece);
+        const tile = Math.max(12, Math.min(24, Math.floor((slotWidth - 20 - (cols - 1) * 2) / cols), Math.floor((85 - (rows - 1) * 2) / rows)));
+        slot.appendChild(makeShape(piece, tile));
+        if (i === selectedSlot) slot.classList.add('selected');
+        slot.setAttribute('aria-pressed', String(i === selectedSlot));
+        slot.addEventListener('pointerdown', e => startDrag(e, i));
+        slot.addEventListener('click', e => { if (e.detail === 0) selectPiece(i); });
+      }
+      trayEl.appendChild(slot);
+    });
+    hintEl.textContent = powerMode ? 'Use o poder no tabuleiro' : selectedSlot < 0 ? 'Toque numa peça e depois no tabuleiro' : 'Agora toque onde deseja encaixar';
+  }
+
+  function selectPiece(index) {
+    if (busy || gameOver || powerMode || !hand[index]) return;
+    selectedSlot = index;
+    hoverCell = null;
+    clearPreview();
+    renderHand();
+    playSound('pick');
+  }
+
+  function getCells(piece, r, c) {
+    return piece.cells.map(([dr, dc]) => [r+dr, c+dc]);
+  }
+
+  function fits(piece, r, c) {
+    return getCells(piece, r, c).every(([rr,cc]) => rr >= 0 && cc >= 0 && rr < SIZE && cc < SIZE && !board[rr][cc]);
+  }
+
+  function anyFit(piece) {
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        if (fits(piece, r, c)) return true;
+      }
+    }
+    return false;
+  }
+
+  function clearPreview() {
+    boardEl.querySelectorAll('.preview-valid,.preview-invalid').forEach(cell => {
+      cell.classList.remove('preview-valid','preview-invalid');
+      cell.style.removeProperty('--preview-color');
+    });
+  }
+
+  function validMove(r, c) {
+    if (!canMoveLast() || (r === lastPlaced.r && c === lastPlaced.c)) return false;
+    const source = new Set(lastPlaced.cells.map(([rr,cc]) => `${rr},${cc}`));
+    return getCells(lastPlaced.piece, r, c).every(([rr,cc]) =>
+      rr >= 0 && cc >= 0 && rr < SIZE && cc < SIZE && (!board[rr][cc] || source.has(`${rr},${cc}`))
+    );
+  }
+
+  function showMovePreview(r, c) {
+    clearPreview();
+    if (powerMode !== 'move' || busy || gameOver || !canMoveLast()) return;
+    const valid = validMove(r, c);
+    getCells(lastPlaced.piece, r, c).forEach(([rr,cc]) => {
+      if (rr < 0 || cc < 0 || rr >= SIZE || cc >= SIZE) return;
+      const cell = boardEl.children[rr * SIZE + cc];
+      cell.classList.add(valid ? 'preview-valid' : 'preview-invalid');
+      if (valid) cell.style.setProperty('--preview-color', lastPlaced.piece.color);
+    });
+  }
+
+  function showPreview(r, c, index = selectedSlot) {
+    clearPreview();
+    if (index < 0 || !hand[index] || busy || gameOver) return;
+    const piece = hand[index];
+    const valid = fits(piece, r, c);
+    getCells(piece, r, c).forEach(([rr,cc]) => {
+      if (rr < 0 || cc < 0 || rr >= SIZE || cc >= SIZE) return;
+      const cell = boardEl.children[rr * SIZE + cc];
+      cell.classList.add(valid ? 'preview-valid' : 'preview-invalid');
+      if (valid) cell.style.setProperty('--preview-color', piece.color);
+    });
+  }
+
+  function showToast(message) {
+    clearTimeout(toastTimeout);
+    toastEl.textContent = message;
+    toastEl.classList.add('show');
+    toastTimeout = setTimeout(() => toastEl.classList.remove('show'), 950);
+  }
+
+  function placePiece(index, r, c) {
+    if (busy || gameOver || !hand[index]) return false;
+    const piece = hand[index];
+    if (!fits(piece, r, c)) {
+      showToast('Essa peça não cabe aqui');
+      playSound('invalid');
+      return false;
+    }
+    const cells = getCells(piece, r, c);
+    cells.forEach(([rr,cc]) => { board[rr][cc] = piece.color; });
+    lastPlaced = { piece: { cells: piece.cells.map(cell => [...cell]), color: piece.color }, r, c, cells };
+    addPoints(cells.length * 10 * multiplier);
+    addEnergy(10);
+    if (gameMode === 'daily') dailyMoves++;
+    hand[index] = null;
+    selectedSlot = -1;
+    hoverCell = null;
+    clearPreview();
+    renderBoard(cells);
+    renderHand();
+    resolveLines();
+    return true;
+  }
+
+  function resolveLines() {
+    const rows = [];
+    const cols = [];
+    for (let i = 0; i < SIZE; i++) {
+      if (board[i].every(Boolean)) rows.push(i);
+      if (board.every(row => !!row[i])) cols.push(i);
+    }
+    if (rows.length || cols.length) {
+      busy = true;
+      const epoch = gameEpoch;
+      combo++;
+      const total = rows.length + cols.length;
+      const upgraded = advanceMultiplier(total);
+      const linePoints = (total * 120 + (combo > 1 ? (combo - 1) * 80 : 0)) * multiplier;
+      addPoints(linePoints);
+      updateMission('lines',total);
+      earnAchievement('firstLine');
+      addEnergy(total * 25 + (combo > 1 ? 40 : 0));
+      updateScore();
+      const marked = new Set();
+      for (const row of rows) for (let col = 0; col < SIZE; col++) marked.add(`${row},${col}`);
+      for (const col of cols) for (let row = 0; row < SIZE; row++) marked.add(`${row},${col}`);
+      marked.forEach(key => {
+        const [rr,cc] = key.split(',').map(Number);
+        boardEl.children[rr*SIZE+cc]?.classList.add('clearing');
+      });
+      boardEl.classList.remove('line-celebration');
+      void boardEl.offsetWidth;
+      boardEl.classList.add('line-celebration');
+      if (combo >= 2 || total > 1) celebrateCombo(combo,total);
+      showToast(upgraded ? `MULTIPLICADOR ×${multiplier}! ✦` : combo > 1 ? `COMBO ×${combo}! +${linePoints}` : total > 1 ? `INCRÍVEL! ${total} LINHAS` : 'LINHA COMPLETA!');
+      if (!upgraded) playSound(combo > 1 ? 'combo' : 'clear');
+      setTimeout(() => {
+        if (epoch !== gameEpoch) return;
+        marked.forEach(key => {
+          const [rr,cc] = key.split(',').map(Number);
+          board[rr][cc] = null;
+        });
+        if (lastPlaced?.cells.some(([r,c]) => marked.has(`${r},${c}`))) lastPlaced = null;
+        busy = false;
+        boardEl.classList.remove('line-celebration');
+        finishTurn();
+      }, 275);
+    } else {
+      combo = 0;
+      playSound('place');
+      updateScore();
+      finishTurn();
+    }
+  }
+
+  function finishTurn() {
+    if (gameOver) return;
+    if (hand.every(piece => piece === null)) hand = makeHand();
+    renderBoard();
+    renderHand();
+    updateScore();
+    updatePower();
+    updateModeUI();
+    if (gameMode === 'daily' && score >= DAILY_TARGET) {
+      endGame(true);
+      return;
+    }
+    if (gameMode === 'daily' && dailyMoves >= DAILY_LIMIT) {
       endGame(false);
       return;
     }
@@ -956,4 +1152,3 @@
   newGame();
   setScreen('play');
 })();
-  
