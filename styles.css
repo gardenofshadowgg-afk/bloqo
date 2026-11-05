@@ -236,3 +236,26 @@ button:disabled{cursor:default}
   .extras-section .mode-tab{font-size:11px}
 }
 @media(prefers-reduced-motion:reduce){.screen-track{transition:none}}
+
+/* BLOQO - Segunda Chance */
+
+.reward-button {
+  width: 100%;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, #55d3a0, #5f9eff);
+  color: #102039;
+  font-weight: 800;
+}
+
+.reward-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.reward-status {
+  margin: 0 0 14px;
+  color: #a9c8ff;
+  font-size: 13px;
+  text-align: center;
+  line-height: 1.5;
+}
